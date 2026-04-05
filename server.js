@@ -122,14 +122,14 @@ const server = http.createServer((req, res) => {
   }
 
   // Serve static files
-  let filePath = path.join(__dirname, 'public', pathname === '/' ? 'index.html' : pathname);
+  let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname);
   const ext = path.extname(filePath);
   const mime = MIME[ext] || 'application/octet-stream';
 
   fs.readFile(filePath, (err, data) => {
     if (err) {
       // Fall back to index.html for SPA routing
-      fs.readFile(path.join(__dirname, 'public', 'index.html'), (err2, data2) => {
+      fs.readFile(path.join(__dirname, 'index.html'), (err2, data2) => {
         if (err2) {
           res.writeHead(404);
           res.end('Not found');

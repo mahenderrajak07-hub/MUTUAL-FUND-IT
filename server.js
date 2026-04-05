@@ -40,161 +40,233 @@ function sendJSON(res, status, obj) {
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
-// Generic HTTPS GET
-function httpsGet(hostname, path) {
+// ── FUND REGISTRY ──────────────────────────────────────────────────────────
+// Loaded from AMFI at startup — covers all 15,000+ schemes
+let fundRegistry = []; // [{schemeCode, schemeName, nameLower}]
+let registryLoaded = false;
+let registryLoading = false;
+
+function httpsGet(hostname, reqPath, timeout = 30000) {
   return new Promise((resolve, reject) => {
-    const req = https.request({ hostname, path, method: 'GET',
-      headers: { 'User-Agent': 'FundAudit/1.0' }
-    }, (res) => {
+    const req = https.request({
+      hostname, path: reqPath, method: 'GET',
+      headers: { 'User-Agent': 'FundAudit/4.0', 'Accept': 'application/json' }
+    }, res => {
       let data = '';
-      res.on('data', chunk => data += chunk);
+      res.on('data', c => data += c);
       res.on('end', () => resolve({ status: res.statusCode, body: data }));
     });
     req.on('error', reject);
-    req.setTimeout(15000, () => { req.destroy(); reject(new Error('Timeout')); });
+    req.setTimeout(timeout, () => { req.destroy(); reject(new Error(`Timeout ${timeout}ms`)); });
     req.end();
   });
 }
 
-// Search for fund scheme code on mfapi.in
-async function searchFundCode(fundName) {
+async function loadFundRegistry() {
+  if (registryLoaded || registryLoading) return;
+  registryLoading = true;
+  console.log('[Registry] Loading all AMFI fund schemes from mfapi.in...');
   try {
-    const query = encodeURIComponent(fundName);
-    const result = await httpsGet('api.mfapi.in', `/mf/search?q=${query}`);
-    if (result.status !== 200) return null;
-    const schemes = JSON.parse(result.body);
-    if (!schemes || schemes.length === 0) return null;
-
-    // Prefer regular plan growth over direct
-    const preferred = schemes.find(s =>
-      s.schemeName.toLowerCase().includes('regular') &&
-      (s.schemeName.toLowerCase().includes('growth') || s.schemeName.toLowerCase().includes('gr'))
-    ) || schemes.find(s =>
-      !s.schemeName.toLowerCase().includes('direct') &&
-      (s.schemeName.toLowerCase().includes('growth') || s.schemeName.toLowerCase().includes('gr'))
-    ) || schemes[0];
-
-    return preferred;
+    const r = await httpsGet('api.mfapi.in', '/mf', 60000);
+    if (r.status !== 200) throw new Error(`HTTP ${r.status}`);
+    const all = JSON.parse(r.body);
+    fundRegistry = all.map(s => ({
+      schemeCode: s.schemeCode,
+      schemeName: s.schemeName,
+      nameLower: s.schemeName.toLowerCase()
+    }));
+    registryLoaded = true;
+    console.log(`[Registry] Loaded ${fundRegistry.length} schemes`);
   } catch(e) {
-    console.warn(`Search failed for ${fundName}: ${e.message}`);
-    return null;
+    console.error('[Registry] Failed to load:', e.message);
+    registryLoading = false;
   }
 }
 
-// Get NAV history and compute returns
-async function getFundData(schemeCode, investmentDate) {
-  try {
-    const result = await httpsGet('api.mfapi.in', `/mf/${schemeCode}`);
-    if (result.status !== 200) return null;
-    const fund = JSON.parse(result.body);
-    if (!fund || !fund.data || fund.data.length === 0) return null;
+// Smart fund matching — finds best Regular Growth plan for any fund name
+function findBestMatch(userInput) {
+  if (!fundRegistry.length) return null;
 
-    const navData = fund.data; // [{date, nav}] newest first
-    const latestNAV = parseFloat(navData[0].nav);
-    const latestDate = navData[0].date;
+  const input = userInput.toLowerCase().trim();
 
-    // Helper: find NAV closest to a target date
-    function navOnDate(targetDateStr) {
-      // targetDateStr: DD-MMM-YYYY or DD-MM-YYYY
-      const target = parseDate(targetDateStr);
-      if (!target) return null;
-      let closest = null, minDiff = Infinity;
-      for (const d of navData) {
-        const nd = parseDate(d.date);
-        if (!nd) continue;
-        const diff = Math.abs(nd - target);
-        if (diff < minDiff) { minDiff = diff; closest = d; }
-        if (diff > minDiff) break; // data is sorted desc, once increasing stop
-      }
-      return closest ? parseFloat(closest.nav) : null;
-    }
+  // Extract key words — remove common noise words
+  const noise = ['fund', 'mutual', 'plan', 'option', 'scheme', 'the', 'india', 'indian'];
+  const words = input.split(/\s+/).filter(w => w.length > 2 && !noise.includes(w));
 
-    function parseDate(str) {
-      if (!str) return null;
-      // Formats: DD-MMM-YYYY (01-Apr-2020), DD-MM-YYYY (01-04-2020)
-      const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
-      const parts = str.split('-');
-      if (parts.length !== 3) return null;
-      let day = parseInt(parts[0]);
-      let month, year;
-      if (parts[1].length === 3 && isNaN(parts[1])) {
-        month = months[parts[1].toLowerCase()];
-        year = parseInt(parts[2]);
-      } else {
-        month = parseInt(parts[1]) - 1;
-        year = parseInt(parts[2]);
-      }
-      if (isNaN(day) || month === undefined || isNaN(year)) return null;
-      return new Date(year, month, day);
-    }
+  // Score each fund scheme
+  const scored = fundRegistry.map(f => {
+    const n = f.nameLower;
+    let score = 0;
 
-    function dateNYearsAgo(n) {
-      const d = new Date();
-      d.setFullYear(d.getFullYear() - n);
-      return `${String(d.getDate()).padStart(2,'0')}-${String(d.getMonth()+1).padStart(2,'0')}-${d.getFullYear()}`;
-    }
+    // Must contain all key words
+    const allWordsMatch = words.every(w => n.includes(w));
+    if (!allWordsMatch) return { ...f, score: 0 };
 
-    function cagr(startNav, endNav, years) {
-      if (!startNav || !endNav || years <= 0) return null;
-      return (Math.pow(endNav / startNav, 1 / years) - 1) * 100;
-    }
+    score += words.length * 10; // base score for matching all words
 
-    const nav1yAgo = navOnDate(dateNYearsAgo(1));
-    const nav3yAgo = navOnDate(dateNYearsAgo(3));
-    const nav5yAgo = navOnDate(dateNYearsAgo(5));
-    const navAtInvestment = investmentDate ? navOnDate(investmentDate) : null;
+    // Strongly prefer Regular Growth plans
+    if (n.includes('regular')) score += 20;
+    if (n.includes('growth')) score += 15;
+    if (n.includes('gr ') || n.endsWith('gr')) score += 10;
 
-    const ret1y = nav1yAgo ? cagr(nav1yAgo, latestNAV, 1) : null;
-    const ret3y = nav3yAgo ? cagr(nav3yAgo, latestNAV, 3) : null;
-    const ret5y = nav5yAgo ? cagr(nav5yAgo, latestNAV, 5) : null;
+    // Penalise Direct plans (we want Regular for Regular plan users)
+    if (n.includes('direct')) score -= 30;
+    if (n.includes(' - direct')) score -= 30;
 
-    // Calendar year returns
-    function calendarYearReturn(year) {
-      const startNav = navOnDate(`01-01-${year}`);
-      const endNav = navOnDate(`31-12-${year}`);
-      if (!startNav || !endNav) return null;
-      return ((endNav - startNav) / startNav) * 100;
-    }
+    // Penalise dividend/IDCW plans
+    if (n.includes('idcw') || n.includes('dividend') || n.includes('payout')) score -= 20;
 
-    const calReturns = {};
-    for (const yr of [2020, 2021, 2022, 2023, 2024, 2025]) {
-      const r = calendarYearReturn(yr);
-      calReturns[yr] = r !== null ? r.toFixed(1) : null;
-    }
+    // Penalise bonus/other variants
+    if (n.includes('bonus') || n.includes('annual') || n.includes('quarterly')) score -= 10;
 
-    // Investment growth
-    let currentValue = null, absoluteReturn = null, investmentCAGR = null;
-    if (navAtInvestment) {
-      const investDate = parseDate(investmentDate);
-      const yearsHeld = investDate ? (Date.now() - investDate) / (365.25 * 24 * 3600 * 1000) : null;
-      currentValue = latestNAV / navAtInvestment;
-      absoluteReturn = ((latestNAV - navAtInvestment) / navAtInvestment) * 100;
-      investmentCAGR = yearsHeld ? cagr(navAtInvestment, latestNAV, yearsHeld) : null;
-    }
+    // Reward exact phrase matches
+    if (n.includes(input)) score += 50;
 
-    return {
-      schemeCode,
-      schemeName: fund.meta.scheme_name,
-      fundHouse: fund.meta.fund_house,
-      schemeCategory: fund.meta.scheme_category,
-      latestNAV: latestNAV.toFixed(4),
-      latestDate,
-      navAtInvestment: navAtInvestment ? navAtInvestment.toFixed(4) : null,
-      ret1y: ret1y ? ret1y.toFixed(2) : null,
-      ret3y: ret3y ? ret3y.toFixed(2) : null,
-      ret5y: ret5y ? ret5y.toFixed(2) : null,
-      calReturns,
-      currentValueMultiple: currentValue ? currentValue.toFixed(4) : null,
-      absoluteReturn: absoluteReturn ? absoluteReturn.toFixed(2) : null,
-      investmentCAGR: investmentCAGR ? investmentCAGR.toFixed(2) : null,
-    };
-  } catch(e) {
-    console.warn(`NAV fetch failed for ${schemeCode}: ${e.message}`);
-    return null;
-  }
+    return { ...f, score };
+  });
+
+  // Sort by score descending
+  scored.sort((a, b) => b.score - a.score);
+
+  const best = scored[0];
+  return best && best.score > 10 ? best : null;
 }
 
-// Call Anthropic with retry
+// ── NAV COMPUTATION ────────────────────────────────────────────────────────
+function parseNavDate(str) {
+  if (!str) return null;
+  const months = { jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11 };
+  const p = str.split('-');
+  if (p.length !== 3) return null;
+  const day = parseInt(p[0]);
+  let month, year;
+  if (isNaN(parseInt(p[1]))) {
+    month = months[p[1].toLowerCase()];
+    year = parseInt(p[2]);
+  } else {
+    month = parseInt(p[1]) - 1;
+    year = parseInt(p[2]);
+  }
+  if (isNaN(day) || month == null || isNaN(year)) return null;
+  return new Date(year, month, day);
+}
+
+function navAt(navData, targetDate) {
+  // navData is sorted newest first
+  let best = null, bestDiff = Infinity;
+  for (const d of navData) {
+    const nd = parseNavDate(d.date);
+    if (!nd) continue;
+    const diff = Math.abs(nd - targetDate);
+    if (diff < bestDiff) { bestDiff = diff; best = parseFloat(d.nav); }
+    if (nd < targetDate && bestDiff < 5 * 86400000) break; // found close enough past date
+  }
+  return best;
+}
+
+function computeCAGR(startNav, endNav, years) {
+  if (!startNav || !endNav || years <= 0) return null;
+  return ((Math.pow(endNav / startNav, 1 / years) - 1) * 100).toFixed(2);
+}
+
+function yearsAgo(n) {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - n);
+  return d;
+}
+
+function calYearReturn(navData, year) {
+  const s = navAt(navData, new Date(year, 0, 2));  // Jan 2
+  const e = navAt(navData, new Date(year, 11, 30)); // Dec 30
+  if (!s || !e) return null;
+  return (((e - s) / s) * 100).toFixed(1);
+}
+
+async function getLiveFundData(fund) {
+  const investAmt = parseFloat(fund.amt.replace(/[₹,\s]/g, '')) || 0;
+  const fmt = v => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
+
+  // Find scheme
+  let match = findBestMatch(fund.name);
+  let schemeCode = match?.schemeCode;
+  let schemeName = match?.schemeName;
+
+  // Fallback: try mfapi search if registry didn't work
+  if (!schemeCode) {
+    console.log(`  [search fallback] ${fund.name}`);
+    try {
+      const q = encodeURIComponent(fund.name);
+      const r = await httpsGet('api.mfapi.in', `/mf/search?q=${q}`);
+      if (r.status === 200) {
+        const schemes = JSON.parse(r.body);
+        const best = schemes.find(s => {
+          const n = s.schemeName.toLowerCase();
+          return n.includes('regular') && n.includes('growth');
+        }) || schemes.find(s => !s.schemeName.toLowerCase().includes('direct')) || schemes[0];
+        if (best) { schemeCode = best.schemeCode; schemeName = best.schemeName; }
+      }
+    } catch(e) { console.warn(`  search failed: ${e.message}`); }
+  }
+
+  if (!schemeCode) {
+    return { fund, error: `"${fund.name}" not found in AMFI database` };
+  }
+
+  // Fetch NAV history
+  console.log(`  [NAV] ${schemeCode} — ${schemeName}`);
+  const r = await httpsGet('api.mfapi.in', `/mf/${schemeCode}`);
+  if (r.status !== 200) return { fund, error: `NAV fetch failed (HTTP ${r.status})` };
+
+  const mfData = JSON.parse(r.body);
+  const navData = mfData.data;
+  schemeName = schemeName || mfData.meta.scheme_name;
+
+  const latestNav = parseFloat(navData[0].nav);
+  const latestDate = navData[0].date;
+
+  // Trailing returns
+  const nav1y = navAt(navData, yearsAgo(1));
+  const nav3y = navAt(navData, yearsAgo(3));
+  const nav5y = navAt(navData, yearsAgo(5));
+
+  const ret1y = computeCAGR(nav1y, latestNav, 1);
+  const ret3y = computeCAGR(nav3y, latestNav, 3);
+  const ret5y = computeCAGR(nav5y, latestNav, 5);
+
+  // Investment tracking
+  const investDate = parseNavDate(fund.date);
+  const navOnInvest = investDate ? navAt(navData, investDate) : null;
+  const yearsHeld = investDate ? (Date.now() - investDate) / (365.25 * 24 * 3600 * 1000) : null;
+  const currentValue = navOnInvest ? (investAmt * latestNav / navOnInvest) : null;
+  const investCAGR = navOnInvest && yearsHeld ? computeCAGR(navOnInvest, latestNav, yearsHeld) : null;
+  const absReturn = navOnInvest ? (((latestNav - navOnInvest) / navOnInvest) * 100).toFixed(2) : null;
+  const gain = currentValue ? (currentValue - investAmt) : null;
+
+  // Calendar year returns
+  const BM = { 2020: 15.2, 2021: 24.1, 2022: 4.8, 2023: 22.3, 2024: 12.8, 2025: 6.5 };
+  const calReturns = {};
+  for (const yr of [2020, 2021, 2022, 2023, 2024, 2025]) {
+    const r = calYearReturn(navData, yr);
+    calReturns[yr] = r;
+    calReturns[`${yr}Beat`] = r !== null ? parseFloat(r) > BM[yr] : false;
+  }
+
+  console.log(`    ✓ 1Y:${ret1y}% 3Y:${ret3y}% 5Y:${ret5y}% | Invested:₹${navOnInvest?.toFixed(2)} → Now:₹${latestNav}`);
+
+  return {
+    fund, schemeCode, schemeName,
+    fundHouse: mfData.meta.fund_house,
+    category: mfData.meta.scheme_category,
+    latestNav, latestDate, navOnInvest,
+    ret1y, ret3y, ret5y, calReturns,
+    investAmt, currentValue, investCAGR, absReturn, gain,
+    currentValueFmt: currentValue ? fmt(currentValue) : null,
+    gainFmt: gain ? fmt(gain) : null,
+    investAmtFmt: fmt(investAmt),
+  };
+}
+
+// ── ANTHROPIC ──────────────────────────────────────────────────────────────
 async function callAnthropic(messages, retries = 3) {
   const payload = { model: 'claude-sonnet-4-5', max_tokens: 7000, messages };
   const postData = JSON.stringify(payload);
@@ -207,159 +279,139 @@ async function callAnthropic(messages, retries = 3) {
       'Content-Length': Buffer.byteLength(postData)
     }
   };
-
   for (let attempt = 1; attempt <= retries; attempt++) {
     const result = await new Promise((resolve, reject) => {
       const req = https.request(opts, res => {
         let data = '';
-        res.on('data', chunk => data += chunk);
+        res.on('data', c => data += c);
         res.on('end', () => resolve({ status: res.statusCode, body: data }));
       });
       req.on('error', reject);
-      req.setTimeout(120000, () => { req.destroy(); reject(new Error('Timed out')); });
+      req.setTimeout(120000, () => { req.destroy(); reject(new Error('Anthropic timeout')); });
       req.write(postData);
       req.end();
     });
-
     const parsed = JSON.parse(result.body);
     if (result.status === 529 || result.status === 500) {
       if (attempt < retries) { await sleep(attempt * 20000); continue; }
-      throw new Error('Servers busy. Try again in a few minutes.');
+      throw new Error('AI service busy. Please retry in a few minutes.');
     }
-    if (result.status === 429) {
-      const msg = parsed.error?.message || '';
-      if (msg.includes('rate limit') || msg.includes('tokens')) {
-        throw new Error('Rate limit hit. Please wait 1 minute and try again.');
-      }
-      if (attempt < retries) { await sleep(attempt * 20000); continue; }
-    }
+    if (result.status === 429) throw new Error(parsed.error?.message || 'Rate limit. Wait 1 min and retry.');
     if (result.status !== 200) throw new Error(parsed.error?.message || `API error ${result.status}`);
     return parsed;
   }
 }
 
+// ── MAIN ANALYSIS ──────────────────────────────────────────────────────────
 async function runAnalysis(funds) {
-  const total = funds.reduce((s, f) => {
-    const n = parseFloat(f.amt.replace(/[₹,\s]/g, ''));
-    return s + (isNaN(n) ? 0 : n);
-  }, 0);
   const fmt = v => new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(v);
+  const totalInvested = funds.reduce((s, f) => s + (parseFloat(f.amt.replace(/[₹,\s]/g, '')) || 0), 0);
 
-  // PHASE 1: Fetch real NAV data from AMFI via mfapi.in
-  console.log(`[Phase 1] Fetching live AMFI data for ${funds.length} funds`);
-  const liveData = [];
+  // Ensure registry is loaded
+  if (!registryLoaded) {
+    console.log('[Analysis] Waiting for fund registry...');
+    await loadFundRegistry();
+  }
 
+  // Phase 1: Fetch real AMFI data for all funds
+  console.log(`\n[Phase 1] Fetching AMFI data for ${funds.length} funds`);
+  const results = [];
   for (const fund of funds) {
-    console.log(`  Searching: ${fund.name}`);
-    const scheme = await searchFundCode(fund.name);
-    if (scheme) {
-      console.log(`  Found: ${scheme.schemeName} (code: ${scheme.schemeCode})`);
-      const data = await getFundData(scheme.schemeCode, fund.date);
-      if (data) {
-        liveData.push({ fund, scheme, data });
-        console.log(`  NAV: ${data.latestNAV} | 1Y: ${data.ret1y}% | 3Y: ${data.ret3y}% | 5Y: ${data.ret5y}%`);
-      } else {
-        liveData.push({ fund, scheme: null, data: null });
-        console.warn(`  NAV data unavailable`);
-      }
-    } else {
-      liveData.push({ fund, scheme: null, data: null });
-      console.warn(`  Fund not found on AMFI`);
+    console.log(`  → ${fund.name}`);
+    try {
+      const data = await getLiveFundData(fund);
+      results.push(data);
+    } catch(e) {
+      console.error(`  ✗ ${e.message}`);
+      results.push({ fund, error: e.message });
     }
   }
 
-  // Build live data summary for Claude
-  const liveDataStr = liveData.map(({ fund, scheme, data }) => {
-    const amt = parseFloat(fund.amt.replace(/[₹,\s]/g, ''));
-    if (!data) return `${fund.name}: AMFI data not found — use training knowledge`;
+  const fetched = results.filter(r => !r.error && r.ret1y);
+  console.log(`[Phase 1] Done: ${fetched.length}/${funds.length} funds fetched successfully`);
 
-    const currentVal = data.navAtInvestment
-      ? fmt(amt * parseFloat(data.currentValueMultiple))
-      : 'unknown';
+  // Compute portfolio totals from real data
+  const totalCurrentValue = results.reduce((s, r) => s + (r.currentValue || 0), 0);
+  const hasAll = results.every(r => r.currentValue);
 
-    const calStr = Object.entries(data.calReturns)
-      .map(([yr, ret]) => `${yr}: ${ret ? ret+'%' : 'N/A'}`)
-      .join(', ');
+  // Build live data summary
+  const liveDataStr = results.map(r => {
+    if (r.error) return `FUND: ${r.fund.name}\nStatus: NOT FOUND — ${r.error}\nUse your knowledge for this fund.\n`;
+    const c = r.calReturns;
+    return `FUND: ${r.fund.name}
+AMFI Name: ${r.schemeName}
+Category: ${r.category}
+Latest NAV: ₹${r.latestNav} (${r.latestDate})
+NAV on ${r.fund.date}: ₹${r.navOnInvest?.toFixed(4) || 'N/A'}
+Amount invested: ${r.investAmtFmt}
+Current value: ${r.currentValueFmt || 'N/A'}
+Gain: ${r.gainFmt || 'N/A'}
+Absolute return: ${r.absReturn || 'N/A'}%
+CAGR since investment: ${r.investCAGR || 'N/A'}%
+1Y trailing CAGR: ${r.ret1y || 'N/A'}%
+3Y trailing CAGR: ${r.ret3y || 'N/A'}%
+5Y trailing CAGR: ${r.ret5y || 'N/A'}%
+Calendar returns (from actual NAV):
+  2020: ${c[2020]||'N/A'}% (BM: 15.2%) ${c['2020Beat']?'✓ BEAT':'✗ LAGGED'}
+  2021: ${c[2021]||'N/A'}% (BM: 24.1%) ${c['2021Beat']?'✓ BEAT':'✗ LAGGED'}
+  2022: ${c[2022]||'N/A'}% (BM:  4.8%) ${c['2022Beat']?'✓ BEAT':'✗ LAGGED'}
+  2023: ${c[2023]||'N/A'}% (BM: 22.3%) ${c['2023Beat']?'✓ BEAT':'✗ LAGGED'}
+  2024: ${c[2024]||'N/A'}% (BM: 12.8%) ${c['2024Beat']?'✓ BEAT':'✗ LAGGED'}
+  2025: ${c[2025]||'N/A'}% (BM:  6.5%) ${c['2025Beat']?'✓ BEAT':'✗ LAGGED'}`;
+  }).join('\n\n---\n\n');
 
-    return `
-FUND: ${fund.name}
-AMFI Scheme: ${data.schemeName}
-Fund House: ${data.fundHouse}
-Category: ${data.schemeCategory}
-Latest NAV: ₹${data.latestNAV} (as of ${data.latestDate})
-NAV on investment date (${fund.date}): ₹${data.navAtInvestment || 'N/A'}
-Amount invested: ${fund.amt}
-Current value: ${currentVal}
-Absolute return since investment: ${data.absoluteReturn ? data.absoluteReturn+'%' : 'N/A'}
-CAGR since investment: ${data.investmentCAGR ? data.investmentCAGR+'%' : 'N/A'}
-1Y CAGR (trailing): ${data.ret1y ? data.ret1y+'%' : 'N/A'}
-3Y CAGR (trailing): ${data.ret3y ? data.ret3y+'%' : 'N/A'}
-5Y CAGR (trailing): ${data.ret5y ? data.ret5y+'%' : 'N/A'}
-Calendar returns: ${calStr}`;
-  }).join('\n\n---\n');
-
-  console.log(`[Phase 1] Done. Live data fetched for ${liveData.filter(d => d.data).length}/${funds.length} funds`);
-
-  // Compute portfolio totals
-  let totalCurrentValue = 0;
-  let allHaveCurrent = true;
-  for (const { fund, data } of liveData) {
-    if (data && data.currentValueMultiple && data.navAtInvestment) {
-      const amt = parseFloat(fund.amt.replace(/[₹,\s]/g, ''));
-      totalCurrentValue += amt * parseFloat(data.currentValueMultiple);
-    } else {
-      allHaveCurrent = false;
-    }
-  }
-  const estCurrentValue = allHaveCurrent ? fmt(totalCurrentValue) : 'calculated below';
-  const estCorpus = allHaveCurrent ? fmt(totalCurrentValue) : fmt(total * 1.72);
-
-  // PHASE 2: Claude analysis using real data
-  console.log(`[Phase 2] Generating analysis with real AMFI data`);
-
-  const ft = liveData.map(({ fund, data }) => {
-    const ret1y = data?.ret1y || 'X';
-    const ret3y = data?.ret3y || 'X';
-    const ret5y = data?.ret5y || 'X';
-    const ret1yVal = parseFloat(data?.ret1y) || 0;
-    const ret3yVal = parseFloat(data?.ret3y) || 0;
-    const ret5yVal = parseFloat(data?.ret5y) || 0;
-    const calR = data?.calReturns || {};
-
-    return `{"name":"${fund.name}","manager":"FILL_FROM_KNOWLEDGE","tenureYrs":0,"tenureFlag":false,"cagr5y":"${ret5y}%","cagr3y":"${ret3y}%","ret1y":"${ret1y}%","sharpe":"FILL","beta":"FILL","stddev":"FILL%","alpha":"FILL%","ter":"FILL%","aum":"FILL","quality":"Average","decision":"Hold","perf5yVal":${ret5yVal},"perf3yVal":${ret3yVal},"ret1yVal":${ret1yVal},"sharpeVal":0,"calendarReturns":{"2020":"${calR[2020]||'X'}%","2020Beat":${parseFloat(calR[2020]||0)>15.2},"2021":"${calR[2021]||'X'}%","2021Beat":${parseFloat(calR[2021]||0)>24.1},"2022":"${calR[2022]||'X'}%","2022Beat":${parseFloat(calR[2022]||0)>4.8},"2023":"${calR[2023]||'X'}%","2023Beat":${parseFloat(calR[2023]||0)>22.3},"2024":"${calR[2024]||'X'}%","2024Beat":${parseFloat(calR[2024]||0)>12.8},"2025":"${calR[2025]||'X'}%","2025Beat":${parseFloat(calR[2025]||0)>6.5}},"quartile":"Q2","quartileLabel":"FILL","rolling1yAvg":"FILL%","rolling1yBeatPct":"FILL%","rolling1yWorst":"FILL%","rolling3yAvg":"FILL%","rolling3yBeatPct":"FILL%","rolling3yMin":"FILL%","realReturn":"FILL%","estCurrentValue":"FILL","gainAmt":"FILL","ltcgTax":"FILL","netProceeds":"FILL","breakEvenMonths":3}`;
+  // Build pre-filled JSON template
+  const fundsJSON = results.map(r => {
+    const c = r.calReturns || {};
+    const p5 = parseFloat(r.ret5y) || 0;
+    const p3 = parseFloat(r.ret3y) || 0;
+    const p1 = parseFloat(r.ret1y) || 0;
+    return `{"name":"${r.fund.name}","manager":"FILL_REAL_NAME","tenureYrs":0,"tenureFlag":false,"cagr5y":"${r.ret5y||'FILL'}%","cagr3y":"${r.ret3y||'FILL'}%","ret1y":"${r.ret1y||'FILL'}%","sharpe":"FILL","beta":"FILL","stddev":"FILL","alpha":"FILL","ter":"FILL","aum":"FILL","quality":"FILL","decision":"FILL","perf5yVal":${p5},"perf3yVal":${p3},"ret1yVal":${p1},"sharpeVal":0,"calendarReturns":{"2020":"${c[2020]||'X'}%","2020Beat":${!!c['2020Beat']},"2021":"${c[2021]||'X'}%","2021Beat":${!!c['2021Beat']},"2022":"${c[2022]||'X'}%","2022Beat":${!!c['2022Beat']},"2023":"${c[2023]||'X'}%","2023Beat":${!!c['2023Beat']},"2024":"${c[2024]||'X'}%","2024Beat":${!!c['2024Beat']},"2025":"${c[2025]||'X'}%","2025Beat":${!!c['2025Beat']}},"quartile":"FILL","quartileLabel":"FILL","rolling1yAvg":"FILL","rolling1yBeatPct":"FILL","rolling1yWorst":"FILL","rolling3yAvg":"FILL","rolling3yBeatPct":"FILL","rolling3yMin":"FILL","realReturn":"FILL","estCurrentValue":"${r.currentValueFmt||'FILL'}","gainAmt":"${r.gainFmt||'FILL'}","ltcgTax":"FILL","netProceeds":"FILL","breakEvenMonths":3}`;
   }).join(',');
 
-  const prompt = `You are a CFA-level Indian mutual fund analyst. I have fetched REAL live data from AMFI's official API (mfapi.in) for each fund. The NAV-based returns below are 100% accurate — computed from actual historical NAV data.
+  // Phase 2: Claude fills remaining fields
+  const prompt = `You are a CFA-level Indian mutual fund analyst. Below is REAL data fetched live from AMFI's official NAV database (mfapi.in). All return figures and current values are computed from actual historical NAV prices — they are 100% accurate.
 
-REAL AMFI DATA (computed from actual NAV history):
+═══ LIVE AMFI DATA (from actual NAV prices) ═══
 ${liveDataStr}
 
-PORTFOLIO TOTALS:
-Total invested: ${fmt(total)}
-Estimated current value: ${estCurrentValue}
+Portfolio invested: ${fmt(totalInvested)}
+Portfolio current value: ${hasAll ? fmt(totalCurrentValue) : 'see individual funds above'}
+Benchmark: Nifty 100 TRI — 5Y: 13.2% | 3Y: 14.0% | 1Y: +0.8%
+CPI: 6.2% | Risk-free rate: 6.5%
 
-Your task:
-1. Use the AMFI return figures EXACTLY as given — do NOT change 1Y/3Y/5Y CAGR values
-2. Fill in the remaining fields from your knowledge: Sharpe ratio, Beta, Std Dev, Alpha, TER, AUM, Fund manager name & tenure, peer quartile, rolling returns, sector allocation, overlap
-3. For Sharpe, Beta, Std Dev: use Value Research / Moneycontrol figures you know for these specific funds
-4. Calculate tax, net proceeds, break-even from the real investment and current values
-5. Make Hold/Switch/Exit decisions based on the REAL performance data
+═══ YOUR TASK ═══
+The 1Y/3Y/5Y CAGR and calendar return values are PRE-FILLED from real AMFI data.
+DO NOT change any return percentage that is already filled.
+Only fill these using your knowledge:
+- manager (real fund manager name for this specific fund as of 2026)
+- tenureYrs (years this manager has managed this fund)
+- tenureFlag (true if under 2 years)
+- sharpe, beta, stddev, alpha (3Y trailing, from Value Research)
+- ter (expense ratio for Regular plan, from AMFI)
+- aum (Assets under Management in Crores, from AMFI)
+- quality (Strong/Average/Weak based on performance vs benchmark)
+- decision (Hold/Switch/Exit based on real data above)
+- quartile, quartileLabel (peer category ranking)
+- rolling1yAvg, rolling1yBeatPct, rolling1yWorst (estimates)
+- rolling3yAvg, rolling3yBeatPct, rolling3yMin (estimates)
+- realReturn (1Y return minus 6.2% CPI)
+- ltcgTax (12.5% on gain above ₹1.25L, after LTCG exemption)
+- netProceeds (currentValue minus ltcgTax)
+- All FILL_REAL_NAME fields with actual manager names
+- All CALC fields with computed values
 
-Return ONLY a single valid JSON — no markdown, no explanation:
+Return ONLY valid JSON, no markdown, no text outside JSON:
 
-{"summary":{"totalInvested":"${fmt(total)}","currentValue":"${estCurrentValue}","blendedCAGR":"CALC_FROM_REAL_DATA","alphaBM":"CALC_VS_13.2%","realReturn":"CALC_MINUS_6.2%_CPI","annualTER":"CALC","fundsBeatBM":"X/${funds.length}","uniqueStocks":"~X","healthScore":"X/10","healthVerdict":"ONE_LINE","overlapPct":"X%","keyFlags":["SPECIFIC_REAL_FINDING","SPECIFIC_REAL_FINDING","SPECIFIC_REAL_FINDING","SPECIFIC_REAL_FINDING"]},"funds":[${ft}],"benchmark":{"cagr5y":"13.2%","cagr3y":"14.0%","ret1y":"+0.8%","sharpe":"0.95","beta":"1.00","stddev":"12.8%","rolling1yAvg":"13.8%","rolling3yAvg":"14.4%","calendarReturns":{"2020":"+15.2%","2021":"+24.1%","2022":"+4.8%","2023":"+22.3%","2024":"+12.8%","2025":"+6.5%"}},"risk":{"blendedBeta":"X","bfsiPct":"X%","top5StocksPct":"X%","midSmallPct":"X%","uniqueStocks":"~X","stddev":"X%","maxDrawdown":"~-X%","downsideCap":"~X%","upsideCap":"~X%","stressScenarios":[{"label":"Bull +15%","impact":"+₹XL","pct":"+X%"},{"label":"Flat 3Y","impact":"-₹XL","pct":"-X%"},{"label":"Correction -20%","impact":"-₹XL","pct":"-X%"},{"label":"Crash -30%","impact":"-₹XL","pct":"-X%"}]},"sectors":[{"name":"BFSI","pct":35,"flag":true},{"name":"IT","pct":14,"flag":false},{"name":"Energy","pct":11,"flag":false},{"name":"Industrials","pct":10,"flag":false},{"name":"Consumer","pct":9,"flag":false},{"name":"Others","pct":21,"flag":false}],"overlap":{"overallPct":"X%","verdict":"X","topStocks":[{"stock":"HDFC Bank","funds":"X funds","avgWt":"X%","risk":"Very High"},{"stock":"ICICI Bank","funds":"X funds","avgWt":"X%","risk":"Very High"},{"stock":"Reliance","funds":"X funds","avgWt":"X%","risk":"High"},{"stock":"Infosys","funds":"X funds","avgWt":"X%","risk":"Moderate"},{"stock":"L&T","funds":"X funds","avgWt":"X%","risk":"Moderate"}]},"projections":{"corpus":"${estCorpus}","rows":[{"label":"Current portfolio","cagr":"X%","y5":"₹XL","y10":"₹XL","y15":"₹XL","y20":"₹XL","type":"bad"},{"label":"Nifty 100 Index","cagr":"13.2%","y5":"₹XL","y10":"₹XL","y15":"₹XL","y20":"₹XL","type":"mid"},{"label":"Recommended portfolio","cagr":"X%","y5":"₹XL","y10":"₹XL","y15":"₹XL","y20":"₹XL","type":"good"}],"gap20y":"₹X Crore"},"recommended":[{"name":"Nippon India Large Cap","cat":"Large Cap","alloc":"25%","amt":"₹XL","cagr5y":"15.98%","sharpe":"0.89","ter":"0.65%","role":"Core anchor"},{"name":"HDFC Mid-Cap Opp.","cat":"Mid Cap","alloc":"30%","amt":"₹XL","cagr5y":"18.7%","sharpe":"0.82","ter":"0.75%","role":"Growth kicker"},{"name":"PPFAS Flexicap","cat":"Flexi Cap","alloc":"25%","amt":"₹XL","cagr5y":"17.3%","sharpe":"0.88","ter":"0.59%","role":"Intl diversifier"},{"name":"Motilal Nifty 50 Index","cat":"Index","alloc":"20%","amt":"₹XL","cagr5y":"13.5%","sharpe":"0.94","ter":"0.11%","role":"Passive core"}],"execution":[{"step":"Step 1 — April 2026","color":"bad","detail":"Exit worst performer first. Use ₹1.25L LTCG exemption. Redeploy into recommended funds."},{"step":"Step 2 — April 2027","color":"warn","detail":"Exit second underperformer. Fresh ₹1.25L exemption. Top up mid-cap and flexi-cap."},{"step":"Step 3 — Oct 2027+","color":"ok","detail":"Annual rebalance. Exit any Q3/Q4 fund 2 years running. Monitor manager changes."}],"scorecard":[{"label":"Performance consistency","score":3.5,"note":"Based on real AMFI rolling returns"},{"label":"Diversification","score":2.0,"note":"Overlap and category concentration"},{"label":"Risk control","score":5.0,"note":"Downside vs upside capture"},{"label":"Cost efficiency","score":2.5,"note":"TER vs alpha delivered"},{"label":"Overall health","score":3.8,"note":"Restructure recommended"}]}
-
-CRITICAL: The 1Y/3Y/5Y CAGR values in the funds array are pre-filled from real AMFI data. Do NOT change them. Only fill in the FILL placeholders using your knowledge.`;
+{"summary":{"totalInvested":"${fmt(totalInvested)}","currentValue":"${hasAll ? fmt(totalCurrentValue) : 'CALC'}","blendedCAGR":"CALC_FROM_REAL","alphaBM":"CALC_VS_BENCHMARK","realReturn":"CALC_MINUS_CPI","annualTER":"CALC_TOTAL","fundsBeatBM":"X/${funds.length}","uniqueStocks":"~X","healthScore":"X.X/10","healthVerdict":"ONE_LINE_VERDICT","overlapPct":"X%","keyFlags":["SPECIFIC_FINDING_WITH_REAL_NUMBERS","SPECIFIC_FINDING","SPECIFIC_FINDING","SPECIFIC_FINDING"]},"funds":[${fundsJSON}],"benchmark":{"cagr5y":"13.2%","cagr3y":"14.0%","ret1y":"+0.8%","sharpe":"0.95","beta":"1.00","stddev":"12.8%","rolling1yAvg":"13.8%","rolling3yAvg":"14.4%","calendarReturns":{"2020":"+15.2%","2021":"+24.1%","2022":"+4.8%","2023":"+22.3%","2024":"+12.8%","2025":"+6.5%"}},"risk":{"blendedBeta":"X","bfsiPct":"X%","top5StocksPct":"X%","midSmallPct":"X%","uniqueStocks":"~X","stddev":"X%","maxDrawdown":"~-X%","downsideCap":"~X%","upsideCap":"~X%","stressScenarios":[{"label":"Bull +15%","impact":"CALC","pct":"+X%"},{"label":"Flat 3Y","impact":"CALC","pct":"-X%"},{"label":"Correction -20%","impact":"CALC","pct":"-X%"},{"label":"Crash -30%","impact":"CALC","pct":"-X%"}]},"sectors":[{"name":"BFSI","pct":35,"flag":true},{"name":"IT","pct":14,"flag":false},{"name":"Energy","pct":11,"flag":false},{"name":"Industrials","pct":10,"flag":false},{"name":"Consumer","pct":9,"flag":false},{"name":"Others","pct":21,"flag":false}],"overlap":{"overallPct":"X%","verdict":"X","topStocks":[{"stock":"HDFC Bank","funds":"X funds","avgWt":"X%","risk":"Very High"},{"stock":"ICICI Bank","funds":"X funds","avgWt":"X%","risk":"Very High"},{"stock":"Reliance","funds":"X funds","avgWt":"X%","risk":"High"},{"stock":"Infosys","funds":"X funds","avgWt":"X%","risk":"Moderate"},{"stock":"L&T","funds":"X funds","avgWt":"X%","risk":"Moderate"}]},"projections":{"corpus":"${hasAll ? fmt(totalCurrentValue) : fmt(totalInvested * 1.7)}","rows":[{"label":"Current portfolio","cagr":"CALC_BLENDED","y5":"CALC","y10":"CALC","y15":"CALC","y20":"CALC","type":"bad"},{"label":"Nifty 100 Index","cagr":"13.2%","y5":"CALC","y10":"CALC","y15":"CALC","y20":"CALC","type":"mid"},{"label":"Recommended portfolio","cagr":"~16%","y5":"CALC","y10":"CALC","y15":"CALC","y20":"CALC","type":"good"}],"gap20y":"CALC"},"recommended":[{"name":"Nippon India Large Cap","cat":"Large Cap","alloc":"25%","amt":"CALC","cagr5y":"15.98%","sharpe":"0.89","ter":"0.65%","role":"Core anchor"},{"name":"HDFC Mid-Cap Opp.","cat":"Mid Cap","alloc":"30%","amt":"CALC","cagr5y":"18.7%","sharpe":"0.82","ter":"0.75%","role":"Growth kicker"},{"name":"PPFAS Flexicap","cat":"Flexi Cap","alloc":"25%","amt":"CALC","cagr5y":"17.3%","sharpe":"0.88","ter":"0.59%","role":"Intl diversifier"},{"name":"Motilal Nifty 50 Index","cat":"Index","alloc":"20%","amt":"CALC","cagr5y":"13.5%","sharpe":"0.94","ter":"0.11%","role":"Passive core"}],"execution":[{"step":"Step 1 — April 2026","color":"bad","detail":"Exit worst performer. Use ₹1.25L LTCG exemption this FY."},{"step":"Step 2 — April 2027","color":"warn","detail":"Exit next underperformer with fresh ₹1.25L exemption."},{"step":"Step 3 — Oct 2027+","color":"ok","detail":"Annual rebalance. Exit Q3/Q4 funds for 2 years running."}],"scorecard":[{"label":"Performance consistency","score":X,"note":"Based on real AMFI returns vs benchmark"},{"label":"Diversification","score":X,"note":"Overlap % and category spread"},{"label":"Risk control","score":X,"note":"Downside vs upside capture ratio"},{"label":"Cost efficiency","score":X,"note":"TER vs real alpha generated"},{"label":"Overall health","score":X,"note":"Specific action required"}]}`;
 
   const response = await callAnthropic([{ role: 'user', content: prompt }]);
-  const text = (response.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
-  console.log(`[Phase 2] Done. Response: ${text.length} chars`);
-  return text;
+  return (response.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
 }
 
+// ── HTTP SERVER ────────────────────────────────────────────────────────────
 const server = http.createServer((req, res) => {
-  const parsedUrl = url.parse(req.url, true);
-  const pathname = parsedUrl.pathname;
+  const { pathname } = url.parse(req.url, true);
 
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -367,58 +419,82 @@ const server = http.createServer((req, res) => {
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   if (pathname === '/health') {
-    sendJSON(res, 200, { ok: true, key: !!ANTHROPIC_API_KEY, mode: 'amfi-live-data' });
+    sendJSON(res, 200, {
+      ok: true,
+      key: !!ANTHROPIC_API_KEY,
+      mode: 'amfi-v4-all-funds',
+      registry: registryLoaded ? `${fundRegistry.length} schemes loaded` : 'loading...'
+    });
+    return;
+  }
+
+  if (pathname === '/api/debug') {
+    httpsGet('api.mfapi.in', '/mf/119598/latest', 10000)
+      .then(r => {
+        let nav = null;
+        try { nav = JSON.parse(r.body); } catch {}
+        sendJSON(res, 200, {
+          amfiReachable: r.status === 200,
+          httpStatus: r.status,
+          fundName: nav?.meta?.scheme_name,
+          latestNAV: nav?.data?.[0]?.nav,
+          registryLoaded,
+          registrySize: fundRegistry.length
+        });
+      })
+      .catch(e => sendJSON(res, 200, { amfiReachable: false, error: e.message, registryLoaded, registrySize: fundRegistry.length }));
+    return;
+  }
+
+  if (pathname === '/api/search' && req.method === 'GET') {
+    const q = url.parse(req.url, true).query.q || '';
+    if (!q) { sendJSON(res, 400, { error: 'No query' }); return; }
+    const match = findBestMatch(q);
+    sendJSON(res, 200, { query: q, match, registrySize: fundRegistry.length });
     return;
   }
 
   if (pathname === '/api/analyse' && req.method === 'POST') {
     const ip = getClientIP(req);
     const rl = getRateLimit(ip);
-    if (rl.count > rl.limit) {
-      sendJSON(res, 429, { error: `Rate limit: ${rl.limit} analyses/hour.` }); return;
-    }
-    if (!ANTHROPIC_API_KEY) {
-      sendJSON(res, 500, { error: 'API key not configured.' }); return;
-    }
+    if (rl.count > rl.limit) { sendJSON(res, 429, { error: 'Rate limit reached. Try again later.' }); return; }
+    if (!ANTHROPIC_API_KEY) { sendJSON(res, 500, { error: 'API key not configured on server.' }); return; }
 
     let body = '';
-    req.on('data', chunk => { body += chunk; });
+    req.on('data', c => { body += c; });
     req.on('end', async () => {
       let payload;
-      try { payload = JSON.parse(body); } catch {
-        sendJSON(res, 400, { error: 'Invalid request' }); return;
-      }
-      if (!payload.funds || !Array.isArray(payload.funds)) {
-        sendJSON(res, 400, { error: 'Missing funds array' }); return;
-      }
+      try { payload = JSON.parse(body); } catch { sendJSON(res, 400, { error: 'Invalid JSON' }); return; }
+      if (!payload.funds?.length) { sendJSON(res, 400, { error: 'No funds provided' }); return; }
 
       try {
-        console.log(`[${new Date().toISOString()}] Request: ${payload.funds.length} funds from ${ip}`);
-        const result = await runAnalysis(payload.funds);
-        sendJSON(res, 200, { content: [{ type: 'text', text: result }] });
-      } catch (err) {
-        console.error('Error:', err.message);
-        sendJSON(res, 500, { error: err.message || 'Analysis failed. Please retry.' });
+        console.log(`[${new Date().toISOString()}] ${payload.funds.length} funds from ${ip}`);
+        const text = await runAnalysis(payload.funds);
+        sendJSON(res, 200, { content: [{ type: 'text', text }] });
+      } catch(e) {
+        console.error('Analysis failed:', e.message);
+        sendJSON(res, 500, { error: e.message || 'Analysis failed. Please retry.' });
       }
     });
     return;
   }
 
+  // Static files
   let filePath = path.join(__dirname, pathname === '/' ? 'index.html' : pathname.replace(/^\//, ''));
-  if (!filePath.startsWith(__dirname)) { res.writeHead(403); res.end('Forbidden'); return; }
-  const ext = path.extname(filePath);
-  const mime = MIME[ext] || 'text/html; charset=utf-8';
+  if (!filePath.startsWith(__dirname)) { res.writeHead(403); res.end(); return; }
+  const mime = MIME[path.extname(filePath)] || 'text/html; charset=utf-8';
   fs.readFile(filePath, (err, data) => {
     if (err) {
-      fs.readFile(path.join(__dirname, 'index.html'), (err2, data2) => {
-        if (err2) { res.writeHead(404); res.end('Not found'); }
-        else { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(data2); }
+      fs.readFile(path.join(__dirname, 'index.html'), (e2, d2) => {
+        if (e2) { res.writeHead(404); res.end('Not found'); }
+        else { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }); res.end(d2); }
       });
     } else { res.writeHead(200, { 'Content-Type': mime }); res.end(data); }
   });
 });
 
+// Start server and immediately begin loading fund registry
 server.listen(PORT, () => {
-  console.log(`FundAudit AMFI-live running on port ${PORT}`);
-  console.log(`API key: ${ANTHROPIC_API_KEY ? 'configured' : 'MISSING'}`);
+  console.log(`FundAudit AMFI-v4 on port ${PORT} | API key: ${!!ANTHROPIC_API_KEY}`);
+  loadFundRegistry(); // async, runs in background
 });

@@ -404,9 +404,8 @@ async function runAnalysis(funds) {
 }
 
 // ── HTTP SERVER ────────────────────────────────────────────────────────────
-const http = require('http');
 const server = http.createServer((req, res) => {
-  const { pathname } = require('url').parse(req.url, true);
+  const { pathname } = url.parse(req.url, true);
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -442,7 +441,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  const fs = require('fs'), path = require('path');
+  
   let fp = path.join(__dirname, pathname==='/'?'index.html':pathname.replace(/^\//,''));
   if (!fp.startsWith(__dirname)) { res.writeHead(403); res.end(); return; }
   const MIME2 = {'.html':'text/html;charset=utf-8','.js':'application/javascript','.css':'text/css','.json':'application/json'};
@@ -457,7 +456,6 @@ const server = http.createServer((req, res) => {
   });
 });
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-  console.log(`FundAudit v6 institutional on port ${PORT} | key:${!!ANTHROPIC_API_KEY}`);
+server.listen(process.env.PORT || 3000, () => {
+  console.log(`FundAudit v6 institutional on port ${process.env.PORT||3000} | key:${!!ANTHROPIC_API_KEY}`);
 });

@@ -179,6 +179,51 @@ function fmt(v) { return new Intl.NumberFormat('en-IN',{style:'currency',currenc
 function pct(v) { return v==null ? 'N/A' : (v>0?'+':'')+v.toFixed(2)+'%'; }
 function fmtC(v) { return v==null ? 'N/A' : (v>0?'+':'')+v.toFixed(1)+'%'; }
 
+
+// ── SEBI CATEGORY → BENCHMARK MAPPING ────────────────────────────────────
+const CATEGORY_BENCHMARKS = {
+  // Equity
+  'Large Cap Fund':           { name:'Nifty 100 TRI',          cagr5y:13.2, cagr3y:14.0, ret1y:0.8,  sharpe:0.95, stddev:12.8 },
+  'Large & Mid Cap Fund':     { name:'Nifty LargeMidcap 250',  cagr5y:14.1, cagr3y:14.8, ret1y:-0.2, sharpe:0.88, stddev:14.2 },
+  'Mid Cap Fund':             { name:'Nifty Midcap 150 TRI',   cagr5y:20.1, cagr3y:17.2, ret1y:-4.8, sharpe:0.85, stddev:17.5 },
+  'Small Cap Fund':           { name:'Nifty Smallcap 250 TRI', cagr5y:22.4, cagr3y:15.8, ret1y:-8.2, sharpe:0.72, stddev:21.0 },
+  'Flexi Cap Fund':           { name:'Nifty 500 TRI',          cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5 },
+  'Multi Cap Fund':           { name:'Nifty 500 TRI',          cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5 },
+  'ELSS':                     { name:'Nifty 500 TRI',          cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5 },
+  'Value Fund':               { name:'Nifty 500 TRI',          cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5 },
+  'Contra Fund':              { name:'Nifty 500 TRI',          cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5 },
+  // Hybrid
+  'Balanced Advantage Fund':  { name:'CRISIL Hybrid 50+50 Aggr', cagr5y:10.8, cagr3y:11.2, ret1y:3.5, sharpe:0.78, stddev:9.8  },
+  'Aggressive Hybrid Fund':   { name:'CRISIL Hybrid 65+35 Aggr', cagr5y:12.1, cagr3y:12.8, ret1y:1.8, sharpe:0.82, stddev:11.2 },
+  'Conservative Hybrid Fund': { name:'CRISIL Hybrid 25+75 Cons', cagr5y:8.4,  cagr3y:8.8,  ret1y:4.2, sharpe:0.72, stddev:7.2  },
+  'Multi Asset Allocation Fund':{ name:'CRISIL Multi Asset',     cagr5y:11.2, cagr3y:11.8, ret1y:3.8, sharpe:0.80, stddev:10.1 },
+  'Equity Savings Fund':      { name:'Nifty Equity Savings',    cagr5y:8.8,  cagr3y:9.2,  ret1y:4.8, sharpe:0.85, stddev:6.8  },
+  'Arbitrage Fund':           { name:'Nifty 50 Arbitrage',      cagr5y:6.2,  cagr3y:6.8,  ret1y:7.2, sharpe:1.20, stddev:1.2  },
+  // Default fallback
+  'default':                  { name:'Nifty 100 TRI',           cagr5y:13.2, cagr3y:14.0, ret1y:0.8, sharpe:0.95, stddev:12.8 },
+};
+
+function getBenchmark(sebiCategory) {
+  if (!sebiCategory) return CATEGORY_BENCHMARKS['default'];
+  const cat = sebiCategory.toLowerCase();
+  // Match by keyword
+  if (cat.includes('balanced advantage') || cat.includes('dynamic asset')) return CATEGORY_BENCHMARKS['Balanced Advantage Fund'];
+  if (cat.includes('aggressive hybrid')) return CATEGORY_BENCHMARKS['Aggressive Hybrid Fund'];
+  if (cat.includes('conservative hybrid')) return CATEGORY_BENCHMARKS['Conservative Hybrid Fund'];
+  if (cat.includes('multi asset')) return CATEGORY_BENCHMARKS['Multi Asset Allocation Fund'];
+  if (cat.includes('equity savings')) return CATEGORY_BENCHMARKS['Equity Savings Fund'];
+  if (cat.includes('arbitrage')) return CATEGORY_BENCHMARKS['Arbitrage Fund'];
+  if (cat.includes('small cap')) return CATEGORY_BENCHMARKS['Small Cap Fund'];
+  if (cat.includes('mid cap') && !cat.includes('large')) return CATEGORY_BENCHMARKS['Mid Cap Fund'];
+  if (cat.includes('large & mid') || cat.includes('large and mid')) return CATEGORY_BENCHMARKS['Large & Mid Cap Fund'];
+  if (cat.includes('large cap')) return CATEGORY_BENCHMARKS['Large Cap Fund'];
+  if (cat.includes('flexi cap') || cat.includes('flexicap')) return CATEGORY_BENCHMARKS['Flexi Cap Fund'];
+  if (cat.includes('multi cap') || cat.includes('multicap')) return CATEGORY_BENCHMARKS['Multi Cap Fund'];
+  if (cat.includes('elss') || cat.includes('tax saver')) return CATEGORY_BENCHMARKS['ELSS'];
+  if (cat.includes('value')) return CATEGORY_BENCHMARKS['Value Fund'];
+  return CATEGORY_BENCHMARKS['default'];
+}
+
 async function fetchFundData(fund) {
   const amt = parseFloat(fund.amt.replace(/[₹,\s]/g,'')) || 0;
   const scheme = await searchFund(fund.name);
@@ -192,7 +237,9 @@ async function fetchFundData(fund) {
   const latestNav = parseFloat(nav[0].nav);
   const latestDate = nav[0].date;
 
-  const ago = n => { const d = new Date(); d.setFullYear(d.getFullYear()-n); return d; };
+  // Use exact same date last year/3yr/5yr for CAGR to match Moneycontrol/VR methodology
+  const latestD = parseD(latestDate) || new Date();
+  const ago = n => { const d = new Date(latestD); d.setFullYear(d.getFullYear()-n); return d; };
   const ret1y = cagr(navAt(nav, ago(1)), latestNav, 1);
   const ret3y = cagr(navAt(nav, ago(3)), latestNav, 3);
   const ret5y = cagr(navAt(nav, ago(5)), latestNav, 5);
@@ -261,8 +308,16 @@ async function fetchFundData(fund) {
     return { fund, amt, error: `NAV data unreliable for matched scheme (${scheme.schemeName}) — fund may have been restructured or renamed` };
   }
 
-  console.log(`  [NAV] ${scheme.schemeName}: 1Y=${pct(ret1y)} 3Y=${pct(ret3y)} 5Y=${pct(ret5y)}`);
-  return { fund, amt, scheme, meta: mf.meta, latestNav, latestDate, navInvest, ret1y, ret3y, ret5y, cal, currentValue, investCAGR, gain, yearsHeld };
+  // Compute beta from NAV volatility (simplified: std dev relative to category benchmark)
+  // True beta needs benchmark NAV series - we approximate from fund vs benchmark stddev
+  const benchmark = getBenchmark(mf.meta?.scheme_category);
+  const fundStdDev = computeStdDev(nav, 36); // 3Y monthly rolling stddev
+  const betaEstimate = fundStdDev > 0 && benchmark.stddev > 0
+    ? (fundStdDev / benchmark.stddev).toFixed(2)
+    : null;
+
+  console.log(`  [NAV] ${scheme.schemeName}: 1Y=${pct(ret1y)} 3Y=${pct(ret3y)} 5Y=${pct(ret5y)} BM:${benchmark.name}`);
+  return { fund, amt, scheme, meta: mf.meta, latestNav, latestDate, navInvest, ret1y, ret3y, ret5y, cal, currentValue, investCAGR, gain, yearsHeld, benchmark, betaEstimate, fundStdDev };
 }
 
 // ── CLAUDE — knowledge fields (manager, TER, Sharpe, Beta, overlap, rolling) ──
@@ -337,7 +392,11 @@ Return this exact structure with REAL data for each fund:
 }
 
 Use ACTUAL data from Value Research, AMFI factsheets, Moneycontrol for each fund.
-IMPORTANT: "ter" must be the REGULAR PLAN expense ratio (typically 1.4–1.9% for equity funds) — NOT the direct plan TER (which is 0.5–1.0% lower). Check AMFI monthly TER disclosure for the correct regular plan figure.
+IMPORTANT: 
+- "ter" must be the REGULAR PLAN expense ratio from AMFI monthly TER disclosure. NOT direct plan.
+  Typical ranges: Large cap equity 1.4-1.8% | Mid/small cap 1.6-2.0% | Balanced advantage 1.5-1.9% | Index funds 0.1-0.3%
+- "riskCategory" must be the SEBI-mandated risk label from the fund's KIM/SID: "Very High Risk" / "High Risk" / "Moderately High Risk" / "Moderate Risk" / "Low to Moderate Risk" / "Low Risk"
+- "beta" is vs the fund's own SEBI benchmark (not always Nifty 100). Balanced advantage beta vs CRISIL Hybrid index is typically 0.85-1.10.
 decision=Hold if 5Y alpha>0, Switch if alpha -1% to 0%, Exit if alpha < -1%.`;
 
   const postData = JSON.stringify({
@@ -391,7 +450,10 @@ function buildReport(funds, results, knowledge) {
 
   const validR = results.filter(r => r.ret5y && r.amt);
   const blendedCAGR5 = validR.length ? validR.reduce((s,r)=>s+(r.ret5y*r.amt),0)/validR.reduce((s,r)=>s+r.amt,0) : 0;
-  const alpha5 = blendedCAGR5 - BM5Y;
+  // Use primary category benchmark for portfolio-level alpha
+  const primaryCat = results.find(r=>r.meta?.scheme_category)?.meta?.scheme_category || '';
+  const portfolioBM = getBenchmark(primaryCat);
+  const alpha5 = blendedCAGR5 - portfolioBM.cagr5y;
   const realReturn = blendedCAGR5 - 6.2;
   const beatCount5 = results.filter(r=>r.ret5y&&r.ret5y>BM5Y).length;
   const avgTER = kFunds.length ? kFunds.reduce((s,k)=>s+parseFloat(k.ter||'1.62'),0)/kFunds.length : 1.62;
@@ -417,16 +479,26 @@ function buildReport(funds, results, knowledge) {
     const ltcgTax = Math.max(0, gain-125000) * 0.125;
     const netProceeds = (r.currentValue||0) - ltcgTax;
 
-    let decision = k.decision || (alpha==null?'Hold':alpha>1?'Hold':alpha>-1?'Switch':'Exit');
-    let quality = k.quality || (r.ret5y>BM5Y+1?'Strong':r.ret5y>BM5Y-2?'Average':'Weak');
-    let quartile = k.quartile || (r.ret5y>15?'Q1':r.ret5y>13?'Q2':r.ret5y>11?'Q3':'Q4');
+    // Use category-appropriate benchmark for each fund
+    const bm = r.benchmark || { name:'Nifty 100 TRI', cagr5y:13.2, cagr3y:14.0, ret1y:0.8 };
+    const bmCAGR5 = bm.cagr5y;
+    const alphaVsBM = r.ret5y != null ? (r.ret5y - bmCAGR5) : null;
+    // Use computed stddev from NAV data (more accurate than Claude's knowledge)
+    const computedStdDev = r.fundStdDev ? r.fundStdDev+'%' : null;
+    const computedBeta = r.betaEstimate || null;
+
+    let decision = k.decision || (alphaVsBM==null?'Hold':alphaVsBM>1?'Hold':alphaVsBM>-1?'Switch':'Exit');
+    let quality = k.quality || (r.ret5y>bmCAGR5+1?'Strong':r.ret5y>bmCAGR5-2?'Average':'Weak');
+    let quartile = k.quartile || (r.ret5y>bmCAGR5+2?'Q1':r.ret5y>bmCAGR5?'Q2':r.ret5y>bmCAGR5-2?'Q3':'Q4');
     let quartileLabel = k.quartileLabel || (quartile==='Q1'?'Top 25%':quartile==='Q2'?'Top 50%':quartile==='Q3'?'Top 75%':'Bottom 25%');
 
     return {
       name:r.fund.name, manager:k.manager||'See factsheet', tenureYrs:k.tenureYrs||3, tenureFlag:k.tenureFlag||false,
       cagr5y:r.ret5y!=null?r.ret5y.toFixed(2)+'%':'N/A', cagr3y:r.ret3y!=null?r.ret3y.toFixed(2)+'%':'N/A', ret1y:r.ret1y!=null?r.ret1y.toFixed(2)+'%':'N/A',
-      sharpe:k.sharpe||(r.ret5y>14?'0.80':r.ret5y>12?'0.65':'0.50'), beta:k.beta||'0.98', stddev:k.stddev||'14.0%',
-      alpha:alpha!=null?(alpha>=0?'+':'')+alpha.toFixed(2)+'%':'N/A', ter:k.ter||'1.62%', riskCategory:k.riskCategory||'Very High Risk',
+      sharpe:k.sharpe||(r.ret5y>bmCAGR5+2?'0.85':r.ret5y>bmCAGR5?'0.72':'0.58'),
+      beta:computedBeta||k.beta||'0.85',
+      stddev:computedStdDev||k.stddev||(r.meta?.scheme_category?.toLowerCase().includes('balanced')?'9.8%':'14.0%'),
+      alpha:alphaVsBM!=null?(alphaVsBM>=0?'+':'')+alphaVsBM.toFixed(2)+'% vs '+bm.name:'N/A', ter:k.ter||'1.62%', riskCategory:k.riskCategory||'Very High Risk',
       quality, decision,
       perf5yVal:r.ret5y||0, perf3yVal:r.ret3y||0, ret1yVal:r.ret1y||0, sharpeVal:parseFloat(k.sharpe)||0.65,
       calendarReturns:{'2020':fmtC(c[2020]),'2020Beat':!!c['2020Beat'],'2021':fmtC(c[2021]),'2021Beat':!!c['2021Beat'],'2022':fmtC(c[2022]),'2022Beat':!!c['2022Beat'],'2023':fmtC(c[2023]),'2023Beat':!!c['2023Beat'],'2024':fmtC(c[2024]),'2024Beat':!!c['2024Beat'],'2025':fmtC(c[2025]),'2025Beat':!!c['2025Beat']},
@@ -465,9 +537,25 @@ function buildReport(funds, results, knowledge) {
   const exitNames = exitFunds.map(f=>f.name.split(' ').slice(0,2).join(' ')).join(' + ') || 'worst performers';
 
   return {
-    summary:{totalInvested:fmt(totalInvested),currentValue:hasAll?fmt(totalCurrent):'N/A',blendedCAGR:blendedCAGR5.toFixed(2)+'%',alphaBM:(alpha5>=0?'+':'')+alpha5.toFixed(2)+'%',realReturn:(realReturn>=0?'+':'')+realReturn.toFixed(2)+'%',annualTER:fmt(annualTERCost),fundsBeatBM:`${beatCount5}/${funds.length}`,uniqueStocks:`~${uniqueStocks}`,healthScore:healthScore+'/10',healthVerdict:knowledge?.healthVerdict||(alpha5>0?'Portfolio beating benchmark — consolidate to reduce redundancy':'Underperforming benchmark — restructure immediately'),overlapPct:overlapPct,keyFlags},
+    summary:{totalInvested:fmt(totalInvested),currentValue:hasAll?fmt(totalCurrent):'N/A',blendedCAGR:blendedCAGR5.toFixed(2)+'%',alphaBM:(alpha5>=0?'+':'')+alpha5.toFixed(2)+'%',realReturn:(realReturn>=0?'+':'')+realReturn.toFixed(2)+'%',annualTER:fmt(annualTERCost),fundsBeatBM:`${beatCount5}/${funds.length}`,uniqueStocks:`~${uniqueStocks}`,healthScore:healthScore+'/10',healthVerdict:knowledge?.healthVerdict||(alpha5>0?`Beating ${portfolioBM.name} — consolidate redundant positions`:`Underperforming ${portfolioBM.name} — restructure recommended`),overlapPct:overlapPct,keyFlags},
     funds:fundsArr,
-    benchmark:{cagr5y:'13.2%',cagr3y:'14.0%',ret1y:'+0.8%',sharpe:'0.95',beta:'1.00',stddev:'12.8%',rolling1yAvg:'14.8%',rolling3yAvg:'14.4%',calendarReturns:{'2020':'+15.5%','2021':'+25.8%','2022':'+5.0%','2023':'+24.1%','2024':'+15.0%','2025':'+3.3%'}},
+    // Use most common fund category's benchmark
+    benchmark:(()=>{
+      const cats = results.filter(r=>r.benchmark).map(r=>r.benchmark.name);
+      const primaryBM = cats.length ? (cats.sort((a,b)=>cats.filter(x=>x===b).length-cats.filter(x=>x===a).length)[0]) : 'Nifty 100 TRI';
+      const bm = results.find(r=>r.benchmark?.name===primaryBM)?.benchmark || CATEGORY_BENCHMARKS['default'];
+      // Calendar returns differ by benchmark - show approximate for primary benchmark
+      const isHybrid = primaryBM.toLowerCase().includes('hybrid') || primaryBM.toLowerCase().includes('crisil');
+      return {
+        name:bm.name,
+        cagr5y:bm.cagr5y+'%', cagr3y:bm.cagr3y+'%', ret1y:(bm.ret1y>=0?'+':'')+bm.ret1y+'%',
+        sharpe:bm.sharpe+'', beta:'1.00', stddev:bm.stddev+'%',
+        rolling1yAvg:bm.cagr5y+'%', rolling3yAvg:bm.cagr3y+'%',
+        calendarReturns: isHybrid
+          ? {'2020':'+8.2%','2021':'+17.1%','2022':'+3.4%','2023':'+14.8%','2024':'+10.2%','2025':'+3.5%'}
+          : {'2020':'+15.5%','2021':'+25.8%','2022':'+5.0%','2023':'+24.1%','2024':'+15.0%','2025':'+3.3%'}
+      };
+    })(),
     risk:{blendedBeta:'0.99',bfsiPct:(sectors.find(s=>s.name==='BFSI')?.pct||38)+'%',top5StocksPct:'24%',midSmallPct:funds.length>3?'<5%':'10%',uniqueStocks:`~${uniqueStocks}`,stddev:'14.2%',maxDrawdown:'~-33%',downsideCap:'~93%',upsideCap:'~96%',stressScenarios:stress},
     sectors,
     overlap:{overallPct:overlapPct,verdict:knowledge?.overlap?.verdict||(funds.length>4?'Critical redundancy — multiple funds, one strategy':'Moderate overlap — consolidate'),topStocks},

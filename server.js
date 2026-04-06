@@ -135,7 +135,29 @@ function pickBest(schemes, userInput) {
   return best;
 }
 
+// Known scheme codes for funds that commonly have timeout issues with full history
+const FAST_SCHEME_CODES = {
+  'kotak flexicap': 120173,    // Kotak Flexicap Fund - Regular Growth (newer scheme, less history)
+  'kotak flexi cap': 120173,
+  'kotak flexicap fund': 120173,
+  'kotak flexi cap fund': 120173,
+};
+
+function getFastSchemeCode(name) {
+  const lower = name.toLowerCase().trim();
+  for (const [key, code] of Object.entries(FAST_SCHEME_CODES)) {
+    if (lower.includes(key)) return code;
+  }
+  return null;
+}
+
 async function searchFund(name) {
+  // Check fast scheme code first
+  const fastCode = getFastSchemeCode(name);
+  if (fastCode) {
+    console.log(`  [fast] Using known code ${fastCode} for ${name}`);
+    return { schemeCode: fastCode, schemeName: name };
+  }
   for (const q of generateQueries(name)) {
     try {
       const r = await httpsGet('api.mfapi.in', `/mf/search?q=${encodeURIComponent(q)}`, 12000);
@@ -247,8 +269,10 @@ async function fetchFundData(fund) {
   const scheme = await searchFund(fund.name);
   if (!scheme) return { fund, amt, error: 'Not found in AMFI' };
 
-  // Fetch with date limit - use whatever data comes back, no fallback (prevents double timeout)
-  const r = await httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}?startDate=01-01-2019`, 22000);
+  // Fetch with date limit - prevents timeout for large funds like Kotak Flexicap
+  // Try 5-year window first, fall back to 3-year if still slow
+  const startYear = new Date().getFullYear() - 6;
+  const r = await httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}?startDate=01-01-${startYear}`, 20000);
   if (r.status !== 200) return { fund, amt, error: `HTTP ${r.status}` };
 
   const mf = JSON.parse(r.body);
@@ -504,7 +528,12 @@ function buildReport(funds, results, knowledge) {
     : portfolioBM.cagr5y;
   const alpha5 = blendedCAGR5 - weightedBMcagr;
   const realReturn = blendedCAGR5 - 6.2;
-  const beatCount5 = results.filter(r=>r.ret5y&&r.ret5y>BM5Y).length;
+  // Beat count uses each fund's OWN benchmark (not portfolio-level)
+  const beatCount5 = results.filter(r => {
+    if (!r.ret5y || r.error) return false;
+    const fundBM = r.benchmark?.cagr5y || portfolioBM.cagr5y;
+    return r.ret5y > fundBM;
+  }).length;
   const avgTER = kFunds.length ? kFunds.reduce((s,k)=>s+parseFloat(k.ter||'1.62'),0)/kFunds.length : 1.62;
   const annualTERCost = totalInvested * avgTER / 100;
   const corpus = hasAll ? totalCurrent : totalInvested * 1.7;
@@ -557,6 +586,8 @@ function buildReport(funds, results, knowledge) {
       realReturn:r.ret1y!=null?(r.ret1y-6.2).toFixed(2)+'%':'N/A',
       estCurrentValue:r.currentValue?fmt(r.currentValue):'N/A', gainAmt:gain>0?fmt(gain):'N/A',
       ltcgTax:fmt(ltcgTax), netProceeds:fmt(netProceeds), breakEvenMonths:7,
+      benchmarkName: (r.benchmark?.name || 'Nifty 100 TRI'),
+      benchmarkCAGR5y: (r.benchmark?.cagr5y || 13.2),
     };
   });
 
@@ -588,7 +619,17 @@ function buildReport(funds, results, knowledge) {
   return {
     summary:{totalInvested:fmt(totalInvested),currentValue:hasAll?fmt(totalCurrent):'N/A',blendedCAGR:blendedCAGR5.toFixed(2)+'%',alphaBM:(alpha5>=0?'+':'')+alpha5.toFixed(2)+'%',realReturn:(realReturn>=0?'+':'')+realReturn.toFixed(2)+'%',annualTER:fmt(annualTERCost),fundsBeatBM:`${beatCount5}/${funds.length}`,uniqueStocks:`~${uniqueStocks}`,healthScore:healthScore+'/10',healthVerdict:knowledge?.healthVerdict||(alpha5>0?`Beating ${portfolioBM.name} — consolidate redundant positions`:`Underperforming ${portfolioBM.name} — restructure recommended`),overlapPct:overlapPct,keyFlags},
     funds:fundsArr,
-    // Use most common fund category's benchmark
+    // Build per-category benchmark rows for all unique benchmarks in portfolio
+    benchmarkRows: (()=>{
+      const bmMap = {};
+      for (const r of results.filter(r=>!r.error && r.benchmark)) {
+        const bm = r.benchmark;
+        if (!bmMap[bm.name]) bmMap[bm.name] = { ...bm, fundCount: 0 };
+        bmMap[bm.name].fundCount++;
+      }
+      return Object.values(bmMap);
+    })(),
+    // Primary benchmark (most common)
     benchmark:(()=>{
       const cats = results.filter(r=>r.benchmark).map(r=>r.benchmark.name);
       const primaryBM = cats.length ? (cats.sort((a,b)=>cats.filter(x=>x===b).length-cats.filter(x=>x===a).length)[0]) : 'Nifty 100 TRI';

@@ -304,7 +304,7 @@ async function callAnthropic(messages, retries = 3) {
         res.on('end', () => resolve({ status: res.statusCode, body: data }));
       });
       req.on('error', reject);
-      req.setTimeout(120000, () => { req.destroy(); reject(new Error('Anthropic timeout')); });
+      req.setTimeout(240000, () => { req.destroy(); reject(new Error('Anthropic timeout — please retry')); });
       req.write(postData);
       req.end();
     });
@@ -380,36 +380,17 @@ Calendar returns vs Nifty 100 TRI:
   }).join(',');
 
   console.log(`[Phase 2] Calling Claude for analysis`);
-  const prompt = `You are a CFA-level Indian mutual fund analyst. Below is REAL NAV data fetched live from AMFI's official database (mfapi.in). All return percentages and current values are computed from actual historical NAV prices — accurate to 2 decimal places.
+  const prompt = `You are a CFA-level Indian mutual fund analyst. REAL AMFI NAV data is below — use these exact return figures.
 
-═══ LIVE AMFI DATA ═══
+LIVE AMFI DATA:
 ${liveDataStr}
 
-Total invested: ${fmt(totalInvested)}
-Total current value: ${hasAll ? fmt(totalCurrentValue) : 'see individual funds'}
-Benchmark: Nifty 100 TRI | 5Y: 13.2% | 3Y: 14.0% | 1Y: +0.8%
-CPI: 6.2% | Risk-free: 6.5% | LTCG: 12.5% above ₹1.25L/FY
+Total invested: ${fmt(totalInvested)} | Current: ${hasAll ? fmt(totalCurrentValue) : 'per fund above'}
+Benchmark Nifty 100 TRI: 5Y=13.2% 3Y=14.0% 1Y=+0.8% | CPI=6.2% | LTCG=12.5% above ₹1.25L/FY
 
-═══ TASK ═══
-The CAGR figures and calendar returns are PRE-FILLED from real AMFI data. Do NOT change them.
-Fill only the FILL placeholders using your expert knowledge of these specific funds:
-• manager — real name of current fund manager as of April 2026
-• tenureYrs — years managing THIS fund (tenureFlag: true if < 2 years)
-• sharpe, beta, stddev, alpha — 3Y trailing from Value Research / Moneycontrol
-• ter — expense ratio for Regular plan (from AMFI factsheet)
-• aum — current AUM in Crores
-• quality — Strong/Average/Weak based on real performance vs benchmark above
-• decision — Hold/Switch/Exit based on real data
-• quartile, quartileLabel — peer category ranking
-• rolling1yAvg, rolling1yBeatPct, rolling1yWorst, rolling3yAvg, rolling3yBeatPct, rolling3yMin
-• realReturn — 1Y CAGR minus 6.2% CPI
-• ltcgTax — 12.5% on gain above ₹1.25L (apply ₹1.25L exemption first)
-• netProceeds — currentValue minus ltcgTax
-• All CALC fields — compute from real data above
+Return ONLY valid JSON. CAGRs and calendar returns are PRE-FILLED — do not change them. Fill FILL/CALC with real values.
 
-Return ONLY valid JSON, no markdown:
-{"summary":{"totalInvested":"${fmt(totalInvested)}","currentValue":"${hasAll ? fmt(totalCurrentValue) : 'CALC'}","blendedCAGR":"CALC","alphaBM":"CALC","realReturn":"CALC","annualTER":"CALC","fundsBeatBM":"X/${funds.length}","uniqueStocks":"~X","healthScore":"X.X/10","healthVerdict":"ONE_LINE","overlapPct":"X%","keyFlags":["SPECIFIC_REAL_FINDING_1","SPECIFIC_REAL_FINDING_2","SPECIFIC_REAL_FINDING_3","SPECIFIC_REAL_FINDING_4"]},"funds":[${fundsJSON}],"benchmark":{"cagr5y":"13.2%","cagr3y":"14.0%","ret1y":"+0.8%","sharpe":"0.95","beta":"1.00","stddev":"12.8%","rolling1yAvg":"13.8%","rolling3yAvg":"14.4%","calendarReturns":{"2020":"+15.2%","2021":"+24.1%","2022":"+4.8%","2023":"+22.3%","2024":"+12.8%","2025":"+6.5%"}},"risk":{"blendedBeta":"X","bfsiPct":"X%","top5StocksPct":"X%","midSmallPct":"X%","uniqueStocks":"~X","stddev":"X%","maxDrawdown":"~-X%","downsideCap":"~X%","upsideCap":"~X%","stressScenarios":[{"label":"Bull +15%","impact":"CALC","pct":"+X%"},{"label":"Flat 3Y","impact":"CALC","pct":"-X%"},{"label":"Correction -20%","impact":"CALC","pct":"-X%"},{"label":"Crash -30%","impact":"CALC","pct":"-X%"}]},"sectors":[{"name":"BFSI","pct":35,"flag":true},{"name":"IT","pct":14,"flag":false},{"name":"Energy","pct":11,"flag":false},{"name":"Industrials","pct":10,"flag":false},{"name":"Consumer","pct":9,"flag":false},{"name":"Others","pct":21,"flag":false}],"overlap":{"overallPct":"X%","verdict":"X","topStocks":[{"stock":"HDFC Bank","funds":"X funds","avgWt":"X%","risk":"Very High"},{"stock":"ICICI Bank","funds":"X funds","avgWt":"X%","risk":"Very High"},{"stock":"Reliance","funds":"X funds","avgWt":"X%","risk":"High"},{"stock":"Infosys","funds":"X funds","avgWt":"X%","risk":"Moderate"},{"stock":"L&T","funds":"X funds","avgWt":"X%","risk":"Moderate"}]},"projections":{"corpus":"${hasAll ? fmt(totalCurrentValue) : fmt(totalInvested * 1.7)}","rows":[{"label":"Current portfolio","cagr":"CALC_BLENDED","y5":"CALC","y10":"CALC","y15":"CALC","y20":"CALC","type":"bad"},{"label":"Nifty 100 Index","cagr":"13.2%","y5":"CALC","y10":"CALC","y15":"CALC","y20":"CALC","type":"mid"},{"label":"Recommended portfolio","cagr":"~16%","y5":"CALC","y10":"CALC","y15":"CALC","y20":"CALC","type":"good"}],"gap20y":"CALC"},"recommended":[{"name":"Nippon India Large Cap","cat":"Large Cap","alloc":"25%","amt":"CALC","cagr5y":"15.98%","sharpe":"0.89","ter":"0.65%","role":"Core anchor"},{"name":"HDFC Mid-Cap Opp.","cat":"Mid Cap","alloc":"30%","amt":"CALC","cagr5y":"18.7%","sharpe":"0.82","ter":"0.75%","role":"Growth kicker"},{"name":"PPFAS Flexicap","cat":"Flexi Cap","alloc":"25%","amt":"CALC","cagr5y":"17.3%","sharpe":"0.88","ter":"0.59%","role":"Intl diversifier"},{"name":"Motilal Nifty 50 Index","cat":"Index","alloc":"20%","amt":"CALC","cagr5y":"13.5%","sharpe":"0.94","ter":"0.11%","role":"Passive core"}],"execution":[{"step":"Step 1 — April 2026","color":"bad","detail":"Exit worst performer. Use ₹1.25L LTCG exemption this FY."},{"step":"Step 2 — April 2027","color":"warn","detail":"Exit next underperformer with fresh ₹1.25L exemption."},{"step":"Step 3 — Oct 2027+","color":"ok","detail":"Annual rebalance. Exit Q3/Q4 funds 2 years running."}],"scorecard":[{"label":"Performance consistency","score":X,"note":"Based on real AMFI beat rate vs benchmark"},{"label":"Diversification","score":X,"note":"Overlap % and category spread"},{"label":"Risk control","score":X,"note":"Downside vs upside capture ratio"},{"label":"Cost efficiency","score":X,"note":"TER vs real alpha delivered"},{"label":"Overall health","score":X,"note":"Key action required"}]}`;
-
+{"summary":{"totalInvested":"${fmt(totalInvested)}","currentValue":"${hasAll ? fmt(totalCurrentValue) : 'CALC'}","blendedCAGR":"CALC","alphaBM":"CALC","realReturn":"CALC","annualTER":"CALC","fundsBeatBM":"X/${funds.length}","uniqueStocks":"~X","healthScore":"X/10","healthVerdict":"SHORT","overlapPct":"X%","keyFlags":["FINDING1","FINDING2","FINDING3","FINDING4"]},"funds":[${fundsJSON}],"benchmark":{"cagr5y":"13.2%","cagr3y":"14.0%","ret1y":"+0.8%","sharpe":"0.95","beta":"1.00","stddev":"12.8%","rolling1yAvg":"13.8%","rolling3yAvg":"14.4%","calendarReturns":{"2020":"+15.2%","2021":"+24.1%","2022":"+4.8%","2023":"+22.3%","2024":"+12.8%","2025":"+6.5%"}},"risk":{"blendedBeta":"X","bfsiPct":"X%","top5StocksPct":"X%","midSmallPct":"X%","uniqueStocks":"~X","stddev":"X%","maxDrawdown":"~-X%","downsideCap":"~X%","upsideCap":"~X%","stressScenarios":[{"label":"Bull +15%","impact":"CALC","pct":"+X%"},{"label":"Flat 3Y","impact":"CALC","pct":"-X%"},{"label":"Correction -20%","impact":"CALC","pct":"-X%"},{"label":"Crash -30%","impact":"CALC","pct":"-X%"}]},"sectors":[{"name":"BFSI","pct":35,"flag":true},{"name":"IT","pct":14,"flag":false},{"name":"Energy","pct":11,"flag":false},{"name":"Industrials","pct":10,"flag":false},{"name":"Consumer","pct":9,"flag":false},{"name":"Others","pct":21,"flag":false}],"overlap":{"overallPct":"X%","verdict":"X","topStocks":[{"stock":"HDFC Bank","funds":"X","avgWt":"X%","risk":"Very High"},{"stock":"ICICI Bank","funds":"X","avgWt":"X%","risk":"Very High"},{"stock":"Reliance","funds":"X","avgWt":"X%","risk":"High"},{"stock":"Infosys","funds":"X","avgWt":"X%","risk":"Moderate"},{"stock":"L&T","funds":"X","avgWt":"X%","risk":"Moderate"}]},"projections":{"corpus":"${hasAll ? fmt(totalCurrentValue) : fmt(totalInvested*1.7)}","rows":[{"label":"Current portfolio","cagr":"CALC","y5":"CALC","y10":"CALC","y15":"CALC","y20":"CALC","type":"bad"},{"label":"Nifty 100 Index","cagr":"13.2%","y5":"CALC","y10":"CALC","y15":"CALC","y20":"CALC","type":"mid"},{"label":"Recommended portfolio","cagr":"~16%","y5":"CALC","y10":"CALC","y15":"CALC","y20":"CALC","type":"good"}],"gap20y":"CALC"},"recommended":[{"name":"Nippon India Large Cap","cat":"Large Cap","alloc":"25%","amt":"CALC","cagr5y":"15.98%","sharpe":"0.89","ter":"0.65%","role":"Core anchor"},{"name":"HDFC Mid-Cap Opp.","cat":"Mid Cap","alloc":"30%","amt":"CALC","cagr5y":"18.7%","sharpe":"0.82","ter":"0.75%","role":"Growth kicker"},{"name":"PPFAS Flexicap","cat":"Flexi Cap","alloc":"25%","amt":"CALC","cagr5y":"17.3%","sharpe":"0.88","ter":"0.59%","role":"Intl diversifier"},{"name":"Motilal Nifty 50 Index","cat":"Index","alloc":"20%","amt":"CALC","cagr5y":"13.5%","sharpe":"0.94","ter":"0.11%","role":"Passive core"}],"execution":[{"step":"Step 1 — Now","color":"bad","detail":"Exit worst fund. Use ₹1.25L LTCG exemption this FY."},{"step":"Step 2 — April 2027","color":"warn","detail":"Exit next underperformer with fresh ₹1.25L exemption."},{"step":"Step 3 — Oct 2027+","color":"ok","detail":"Annual rebalance. Exit Q3/Q4 funds 2 years running."}],"scorecard":[{"label":"Performance consistency","score":X,"note":"AMFI beat rate"},{"label":"Diversification","score":X,"note":"Overlap and spread"},{"label":"Risk control","score":X,"note":"Downside capture"},{"label":"Cost efficiency","score":X,"note":"TER vs alpha"},{"label":"Overall health","score":X,"note":"Key action"}]}`
   const response = await callAnthropic([{ role: 'user', content: prompt }]);
   const text = (response.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
   console.log(`[Phase 2] Done. ${text.length} chars`);
@@ -464,7 +445,7 @@ const server = http.createServer((req, res) => {
         // Hard 3-minute timeout so server never gets stuck
         const text = await Promise.race([
           runAnalysis(payload.funds),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Analysis took too long. Please retry — this sometimes happens on cold starts.')), 180000))
+          new Promise((_, reject) => setTimeout(() => reject(new Error('Analysis took too long. Please retry.')), 270000))
         ]);
         sendJSON(res, 200, { content: [{ type: 'text', text }] });
       } catch(e) {

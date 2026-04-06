@@ -428,7 +428,7 @@ function buildDashboard(d,funds){
     <td class="d-nr ${f.ret1yVal>0?'d-g':'d-r'}">${f.ret1y}</td>
     <td class="d-nr ${f.sharpeVal>0.8?'d-g':f.sharpeVal>0.5?'d-o':'d-r'}">${f.sharpe}</td>
     <td class="d-nr">${f.beta}</td><td class="d-nr">${f.stddev}</td>
-    <td class="d-nr">${f.alpha}</td><td class="d-nr">${f.ter}</td><td class="d-nc"><span class="d-tag d-tb">${f.riskCategory||'—'}</span></td>
+    <td class="d-nr">${f.alpha}</td><td class="d-nr">${f.ter}</td><td class="d-nc"><span class="d-tag ${(f.riskCategory||''). toLowerCase().includes('very high')?'d-tr':(f.riskCategory||''). toLowerCase().includes('high')?'d-to':(f.riskCategory||''). toLowerCase().includes('moderate')?'d-tb':'d-tgy'}">${(f.riskCategory||'Very High Risk').replace(' Risk','')}</span></td>
     <td class="d-nc"><span class="d-tag ${f.tenureFlag?'d-to':'d-tb'}">${f.tenureYrs}yr${f.tenureFlag?' ⚠':''}</span></td>
     <td class="d-nc"><span class="d-vd ${qualColor(f.quality)}">${f.quality}</span></td>
     <td class="d-nc"><span class="d-vd ${decColor(f.decision)}">${f.decision==='Switch'?'⇄ Switch':f.decision==='Exit'?'✗ Exit':'✔ Hold'}</span></td>

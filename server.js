@@ -247,7 +247,7 @@ async function fetchFundData(fund) {
   const scheme = await searchFund(fund.name);
   if (!scheme) return { fund, amt, error: 'Not found in AMFI' };
 
-  const r = await httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}`, 25000);
+  const r = await httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}`, 22000);
   if (r.status !== 200) return { fund, amt, error: `HTTP ${r.status}` };
 
   const mf = JSON.parse(r.body);
@@ -588,10 +588,19 @@ function buildReport(funds, results, knowledge) {
 // ── MAIN ANALYSIS ──────────────────────────────────────────────────────────
 async function runAnalysis(funds) {
   console.log(`\n[Phase 1] Fetching AMFI for ${funds.length} funds in parallel`);
+  const FUND_TIMEOUT = 25000;
   const results = await Promise.all(funds.map(async fund => {
     console.log(`  → ${fund.name}`);
-    try { return await fetchFundData(fund); }
-    catch(e) { console.error(`  ✗ ${fund.name}: ${e.message}`); return { fund, amt: parseFloat(fund.amt.replace(/[₹,\s]/g,''))||0, error: e.message }; }
+    try {
+      return await Promise.race([
+        fetchFundData(fund),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('Fund fetch timed out')), FUND_TIMEOUT))
+      ]);
+    }
+    catch(e) {
+      console.error(`  ✗ ${fund.name}: ${e.message}`);
+      return { fund, amt: parseFloat(fund.amt.replace(/[₹,\s]/g,''))||0, error: e.message };
+    }
   }));
   const ok = results.filter(r => !r.error).length;
   console.log(`[Phase 1] Done: ${ok}/${funds.length} fetched`);

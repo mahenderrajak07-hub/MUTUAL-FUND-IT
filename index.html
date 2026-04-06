@@ -434,11 +434,11 @@ function buildDashboard(d,funds){
     <td class="d-nc"><span class="d-vd ${decColor(f.decision)}">${f.decision==='Switch'?'⇄ Switch':f.decision==='Exit'?'✗ Exit':'✔ Hold'}</span></td>
   </tr>`).join('')}
   <tr style="background:var(--paper)">
-    <td style="color:var(--muted);font-size:10px">Nifty 100 TRI</td>
-    <td class="d-nr d-b">${B.cagr5y}</td><td class="d-nr d-b">${B.cagr3y}</td><td class="d-nr d-b">${B.ret1y}</td>
-    <td class="d-nr d-b">${B.sharpe}</td><td class="d-nr d-b">${B.beta}</td><td class="d-nr d-b">${B.stddev}</td>
-    <td class="d-nr d-b">—</td><td class="d-nr d-b">0.10%</td><td class="d-nr d-b">—</td>
-    <td colspan="3" class="d-nc" style="color:var(--muted)">Benchmark</td>
+    ${(d.benchmarkRows||[B]).map(bm=>`<td style="color:var(--muted);font-size:10px">${bm.name||'Nifty 100 TRI'}</td>
+    <td class="d-nr d-b">${bm.cagr5y||B.cagr5y}%</td><td class="d-nr d-b">${bm.cagr3y||B.cagr3y}%</td><td class="d-nr d-b">+${bm.ret1y||B.ret1y}%</td>
+    <td class="d-nr d-b">${bm.sharpe||B.sharpe}</td><td class="d-nr d-b">1.00</td><td class="d-nr d-b">${bm.stddev||B.stddev}%</td>
+    <td class="d-nr d-b">—</td><td class="d-nr d-b">0.10%</td><td class="d-nc">—</td>
+    <td colspan="3" class="d-nc" style="color:var(--muted)">Benchmark</td>`).join('</tr><tr style="background:var(--paper)">')}
   </tr></tbody></table></div></div>`;
 
   h+=`<div style="margin-bottom:1.25rem"><div class="d-sec-hd">Calendar year heatmap</div>
@@ -450,21 +450,26 @@ function buildDashboard(d,funds){
   ${F.map(f=>{const cr=f.calendarReturns||{};return `<tr><td><div class="d-fn">${f.name.split(' ').slice(0,3).join(' ')}</div></td>
     ${years.map(y=>{const v=cr[y]||'—';const b=cr[y+'Beat'];return `<td class="d-nc"><span class="${b===true?'d-hl-g':b===false?'d-hl-r':'d-hl-a'}">${v}</span></td>`;}).join('')}
     <td class="d-nc"><span class="d-tag ${qColor(f.quartile)}">${f.quartile} — ${f.quartileLabel}</span></td></tr>`;}).join('')}
-  <tr style="background:var(--paper)"><td style="color:var(--muted);font-size:10px">Nifty 100 TRI</td>
-    ${years.map(y=>`<td class="d-nc"><span class="d-hl-b">${B.calendarReturns?.[y]||'—'}</span></td>`).join('')}<td></td>
-  </tr></tbody></table></div>
+  ${(() => {
+    // Show all unique benchmarks in portfolio
+    const bmRows = d.benchmarkRows || [B];
+    return bmRows.map(bm => `<tr style="background:var(--paper)">
+      <td style="color:var(--muted);font-size:10px">${bm.name||'Nifty 100 TRI'}</td>
+      ${years.map(y=>`<td class="d-nc"><span class="d-hl-b">${bm.calendarReturns?.[y]||'—'}</span></td>`).join('')}<td></td>
+    </tr>`).join('');
+  })()}</tbody></table></div>
   <div style="font-size:10px;color:var(--muted);margin-top:4px">*2020 partial year · <span class="d-hl-g">Beat BM</span> <span class="d-hl-a">Near BM</span> <span class="d-hl-r">Lagged BM</span></div></div>`;
 
   h+=`<div style="margin-bottom:1.25rem"><div class="d-sec-hd">Rolling returns — consistency</div><div class="d-g2">
     <div class="d-card"><div style="font-size:12px;font-weight:500;margin-bottom:8px">1-year rolling</div>
     <table class="d-tbl"><thead><tr><th>Fund</th><th class="d-nr">Avg</th><th class="d-nr">% beats BM</th><th class="d-nr">Worst</th></tr></thead><tbody>
     ${F.map(f=>`<tr><td style="font-weight:500">${f.name.split(' ').slice(0,2).join(' ')}</td><td class="d-nr d-o">${f.rolling1yAvg}</td><td class="d-nr ${parseInt(f.rolling1yBeatPct)>50?'d-o':'d-r'}">${f.rolling1yBeatPct}</td><td class="d-nr d-r">${f.rolling1yWorst}</td></tr>`).join('')}
-    <tr style="background:var(--paper)"><td style="color:var(--muted)">Nifty 100</td><td class="d-nr d-b">${B.rolling1yAvg}</td><td class="d-nr">—</td><td class="d-nr">—</td></tr>
+    ${(d.benchmarkRows||[B]).map(bm=>`<tr style="background:var(--paper)"><td style="color:var(--muted)">${(bm.name||'Nifty 100').split(' ').slice(0,3).join(' ')}</td><td class="d-nr d-b">${bm.cagr5y||B.rolling1yAvg}%</td><td class="d-nr">—</td><td class="d-nr">—</td></tr>`).join('')}
     </tbody></table></div>
     <div class="d-card"><div style="font-size:12px;font-weight:500;margin-bottom:8px">3-year rolling</div>
     <table class="d-tbl"><thead><tr><th>Fund</th><th class="d-nr">Avg</th><th class="d-nr">% beats BM</th><th class="d-nr">Min</th></tr></thead><tbody>
     ${F.map(f=>`<tr><td style="font-weight:500">${f.name.split(' ').slice(0,2).join(' ')}</td><td class="d-nr d-o">${f.rolling3yAvg}</td><td class="d-nr ${parseInt(f.rolling3yBeatPct)>50?'d-o':'d-r'}">${f.rolling3yBeatPct}</td><td class="d-nr ${parseFloat(f.rolling3yMin)>8?'d-o':'d-r'}">${f.rolling3yMin}</td></tr>`).join('')}
-    <tr style="background:var(--paper)"><td style="color:var(--muted)">Nifty 100</td><td class="d-nr d-b">${B.rolling3yAvg}</td><td class="d-nr">—</td><td class="d-nr">—</td></tr>
+    ${(d.benchmarkRows||[B]).map(bm=>`<tr style="background:var(--paper)"><td style="color:var(--muted)">${(bm.name||'Nifty 100').split(' ').slice(0,3).join(' ')}</td><td class="d-nr d-b">${bm.cagr3y||B.rolling3yAvg}%</td><td class="d-nr">—</td><td class="d-nr">—</td></tr>`).join('')}
     </tbody></table></div>
   </div></div>`;
 

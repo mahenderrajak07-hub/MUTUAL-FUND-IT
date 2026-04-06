@@ -224,6 +224,24 @@ function getBenchmark(sebiCategory) {
   return CATEGORY_BENCHMARKS['default'];
 }
 
+
+// Compute annualised std dev from monthly NAV returns (last N months)
+function computeStdDev(navData, months) {
+  const pts = [];
+  const today = new Date();
+  for (let i = 1; i <= months; i++) {
+    const d1 = new Date(today); d1.setMonth(d1.getMonth() - i);
+    const d2 = new Date(today); d2.setMonth(d2.getMonth() - i + 1);
+    const n1 = navAt(navData, d1);
+    const n2 = navAt(navData, d2);
+    if (n1 && n2 && n1 > 0) pts.push((n2 - n1) / n1 * 100);
+  }
+  if (pts.length < 6) return null;
+  const mean = pts.reduce((s, v) => s + v, 0) / pts.length;
+  const variance = pts.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / (pts.length - 1);
+  return (Math.sqrt(variance) * Math.sqrt(12)).toFixed(2);
+}
+
 async function fetchFundData(fund) {
   const amt = parseFloat(fund.amt.replace(/[₹,\s]/g,'')) || 0;
   const scheme = await searchFund(fund.name);

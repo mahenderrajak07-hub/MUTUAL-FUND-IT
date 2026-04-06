@@ -247,15 +247,9 @@ async function fetchFundData(fund) {
   const scheme = await searchFund(fund.name);
   if (!scheme) return { fund, amt, error: 'Not found in AMFI' };
 
-  // Try with date limit first (faster for large funds like Kotak Flexicap)
-  let r = await httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}?startDate=01-01-2019`, 15000)
-    .catch(() => null);
-  let usedFullHistory = false;
-  if (!r || r.status !== 200 || (JSON.parse(r?.body||'{"data":[]}').data?.length||0) < 50) {
-    r = await httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}`, 20000);
-    usedFullHistory = true;
-  }
-  if (!r || r.status !== 200) return { fund, amt, error: `HTTP ${r?.status||'timeout'}` };
+  // Fetch with date limit - use whatever data comes back, no fallback (prevents double timeout)
+  const r = await httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}?startDate=01-01-2019`, 22000);
+  if (r.status !== 200) return { fund, amt, error: `HTTP ${r.status}` };
 
   const mf = JSON.parse(r.body);
   const nav = mf.data;
@@ -276,7 +270,11 @@ async function fetchFundData(fund) {
   const investCAGR = navInvest && yearsHeld ? cagr(navInvest, latestNav, yearsHeld) : null;
   const gain = currentValue ? currentValue - amt : null;
 
-  const BM = {2020:15.2,2021:24.1,2022:4.8,2023:22.3,2024:12.8,2025:6.5};
+  // Use category-appropriate calendar year benchmarks
+  const isHybridCat = (mf.meta?.scheme_category||'').toLowerCase().match(/balanced|hybrid|multi asset|dynamic/);
+  const BM = isHybridCat
+    ? {2020:8.4, 2021:17.1, 2022:3.2, 2023:15.1, 2024:10.4, 2025:3.2}  // CRISIL Hybrid 50+50
+    : {2020:15.2, 2021:24.1, 2022:4.8, 2023:22.3, 2024:12.8, 2025:6.5}; // Nifty 100 TRI
   const cal = {};
   const isHybridFund = (mf.meta?.scheme_category||'').toLowerCase().includes('balanced') ||
                        (mf.meta?.scheme_category||'').toLowerCase().includes('hybrid') ||
@@ -290,8 +288,13 @@ async function fetchFundData(fund) {
     let rv = (s&&e) ? ((e-s)/s*100) : null;
     // Sanity check: if return is unrealistic, mark as null (bad data)
     if (rv !== null && (rv < minReasonableReturn || rv > maxReasonableReturn)) {
-      console.warn(`  [CAL SANITY] ${yr} return ${rv.toFixed(1)}% out of range for ${mf.meta?.scheme_name||'fund'} — marking N/A`);
+      console.warn(`  [CAL SANITY] ${yr} return ${rv.toFixed(1)}% out of range — marking N/A`);
       rv = null;
+    }
+    // Also check: if both start and end NAVs are almost identical (< 0.1% apart),
+    // it likely means the fund didn't exist / had no trading that year
+    if (s && e && Math.abs(e-s)/s < 0.001) {
+      rv = null; // Not enough price movement - likely wrong data
     }
     cal[yr] = rv;
     cal[yr+'Beat'] = rv!=null ? rv > BM[yr] : false;
@@ -358,8 +361,9 @@ async function fetchFundData(fund) {
 
 // ── CLAUDE — knowledge fields (manager, TER, Sharpe, Beta, overlap, rolling) ──
 async function getKnowledgeFields(funds, results) {
+  // Only ask Claude about funds we actually have data for
   const fundList = results.map(r => {
-    if (r.error) return `${r.fund.name}: not found`;
+    if (r.error) return `${r.fund.name}: DATA NOT AVAILABLE (timed out) — skip this fund, return null for it`;
     return `${r.fund.name} | Category:${r.meta?.scheme_category||'Equity'} | 1Y:${pct(r.ret1y)} 3Y:${pct(r.ret3y)} 5Y:${pct(r.ret5y)} | Invested:${fmt(r.amt)} | Current:${r.currentValue?fmt(r.currentValue):'N/A'}`;
   }).join('\n');
 
@@ -597,7 +601,7 @@ function buildReport(funds, results, knowledge) {
         sharpe:bm.sharpe+'', beta:'1.00', stddev:bm.stddev+'%',
         rolling1yAvg:bm.cagr5y+'%', rolling3yAvg:bm.cagr3y+'%',
         calendarReturns: isHybrid
-          ? {'2020':'+8.2%','2021':'+17.1%','2022':'+3.4%','2023':'+14.8%','2024':'+10.2%','2025':'+3.5%'}
+          ? {'2020':'+8.4%','2021':'+17.1%','2022':'+3.2%','2023':'+15.1%','2024':'+10.4%','2025':'+3.2%'}
           : {'2020':'+15.5%','2021':'+25.8%','2022':'+5.0%','2023':'+24.1%','2024':'+15.0%','2025':'+3.3%'}
       };
     })(),

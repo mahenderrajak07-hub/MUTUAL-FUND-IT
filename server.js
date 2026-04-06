@@ -135,29 +135,7 @@ function pickBest(schemes, userInput) {
   return best;
 }
 
-// Known scheme codes for funds that commonly have timeout issues with full history
-const FAST_SCHEME_CODES = {
-  'kotak flexicap': 120173,    // Kotak Flexicap Fund - Regular Growth (newer scheme, less history)
-  'kotak flexi cap': 120173,
-  'kotak flexicap fund': 120173,
-  'kotak flexi cap fund': 120173,
-};
-
-function getFastSchemeCode(name) {
-  const lower = name.toLowerCase().trim();
-  for (const [key, code] of Object.entries(FAST_SCHEME_CODES)) {
-    if (lower.includes(key)) return code;
-  }
-  return null;
-}
-
 async function searchFund(name) {
-  // Check fast scheme code first
-  const fastCode = getFastSchemeCode(name);
-  if (fastCode) {
-    console.log(`  [fast] Using known code ${fastCode} for ${name}`);
-    return { schemeCode: fastCode, schemeName: name };
-  }
   for (const q of generateQueries(name)) {
     try {
       const r = await httpsGet('api.mfapi.in', `/mf/search?q=${encodeURIComponent(q)}`, 12000);
@@ -203,26 +181,36 @@ function fmtC(v) { return v==null ? 'N/A' : (v>0?'+':'')+v.toFixed(1)+'%'; }
 
 
 // ── SEBI CATEGORY → BENCHMARK MAPPING ────────────────────────────────────
+const CALENDAR = {
+  NIFTY100:  {'2020':'+15.5%','2021':'+25.8%','2022':'+5.0%','2023':'+24.1%','2024':'+15.0%','2025':'+3.3%'},
+  NIFTY500:  {'2020':'+16.1%','2021':'+28.4%','2022':'+0.8%','2023':'+25.6%','2024':'+14.6%','2025':'+1.8%'},
+  NIFTY_MID: {'2020':'+26.2%','2021':'+46.0%','2022':'+0.2%','2023':'+41.9%','2024':'+23.9%','2025':'-8.1%'},
+  NIFTY_SM:  {'2020':'+27.8%','2021':'+63.0%','2022':'-3.7%','2023':'+48.2%','2024':'+18.8%','2025':'-15.6%'},
+  CRISIL_H:  {'2020':'+8.4%', '2021':'+17.1%','2022':'+3.2%','2023':'+15.1%','2024':'+10.4%','2025':'+3.2%'},
+  CRISIL_H65:{'2020':'+11.2%','2021':'+21.4%','2022':'+4.1%','2023':'+18.8%','2024':'+12.1%','2025':'+3.1%'},
+  CRISIL_MA: {'2020':'+9.2%', '2021':'+18.8%','2022':'+5.1%','2023':'+15.4%','2024':'+11.2%','2025':'+4.8%'},
+};
+
 const CATEGORY_BENCHMARKS = {
   // Equity
-  'Large Cap Fund':           { name:'Nifty 100 TRI',          cagr5y:13.2, cagr3y:14.0, ret1y:0.8,  sharpe:0.95, stddev:12.8 },
-  'Large & Mid Cap Fund':     { name:'Nifty LargeMidcap 250',  cagr5y:14.1, cagr3y:14.8, ret1y:-0.2, sharpe:0.88, stddev:14.2 },
-  'Mid Cap Fund':             { name:'Nifty Midcap 150 TRI',   cagr5y:20.1, cagr3y:17.2, ret1y:-4.8, sharpe:0.85, stddev:17.5 },
-  'Small Cap Fund':           { name:'Nifty Smallcap 250 TRI', cagr5y:22.4, cagr3y:15.8, ret1y:-8.2, sharpe:0.72, stddev:21.0 },
-  'Flexi Cap Fund':           { name:'Nifty 500 TRI',          cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5 },
-  'Multi Cap Fund':           { name:'Nifty 500 TRI',          cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5 },
-  'ELSS':                     { name:'Nifty 500 TRI',          cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5 },
-  'Value Fund':               { name:'Nifty 500 TRI',          cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5 },
-  'Contra Fund':              { name:'Nifty 500 TRI',          cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5 },
+  'Large Cap Fund':            { name:'Nifty 100 TRI',           cagr5y:13.2, cagr3y:14.0, ret1y:0.8,  sharpe:0.95, stddev:12.8, calendarReturns:CALENDAR.NIFTY100 },
+  'Large & Mid Cap Fund':      { name:'Nifty LargeMidcap 250',   cagr5y:14.1, cagr3y:14.8, ret1y:-0.2, sharpe:0.88, stddev:14.2, calendarReturns:CALENDAR.NIFTY100 },
+  'Mid Cap Fund':              { name:'Nifty Midcap 150 TRI',    cagr5y:20.1, cagr3y:17.2, ret1y:-4.8, sharpe:0.85, stddev:17.5, calendarReturns:CALENDAR.NIFTY_MID },
+  'Small Cap Fund':            { name:'Nifty Smallcap 250 TRI',  cagr5y:22.4, cagr3y:15.8, ret1y:-8.2, sharpe:0.72, stddev:21.0, calendarReturns:CALENDAR.NIFTY_SM },
+  'Flexi Cap Fund':            { name:'Nifty 500 TRI',           cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5, calendarReturns:CALENDAR.NIFTY500 },
+  'Multi Cap Fund':            { name:'Nifty 500 TRI',           cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5, calendarReturns:CALENDAR.NIFTY500 },
+  'ELSS':                      { name:'Nifty 500 TRI',           cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5, calendarReturns:CALENDAR.NIFTY500 },
+  'Value Fund':                { name:'Nifty 500 TRI',           cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5, calendarReturns:CALENDAR.NIFTY500 },
+  'Contra Fund':               { name:'Nifty 500 TRI',           cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5, calendarReturns:CALENDAR.NIFTY500 },
   // Hybrid
-  'Balanced Advantage Fund':  { name:'CRISIL Hybrid 50+50 Aggr', cagr5y:10.8, cagr3y:11.2, ret1y:3.5, sharpe:0.78, stddev:9.8  },
-  'Aggressive Hybrid Fund':   { name:'CRISIL Hybrid 65+35 Aggr', cagr5y:12.1, cagr3y:12.8, ret1y:1.8, sharpe:0.82, stddev:11.2 },
-  'Conservative Hybrid Fund': { name:'CRISIL Hybrid 25+75 Cons', cagr5y:8.4,  cagr3y:8.8,  ret1y:4.2, sharpe:0.72, stddev:7.2  },
-  'Multi Asset Allocation Fund':{ name:'CRISIL Multi Asset',     cagr5y:11.2, cagr3y:11.8, ret1y:3.8, sharpe:0.80, stddev:10.1 },
-  'Equity Savings Fund':      { name:'Nifty Equity Savings',    cagr5y:8.8,  cagr3y:9.2,  ret1y:4.8, sharpe:0.85, stddev:6.8  },
-  'Arbitrage Fund':           { name:'Nifty 50 Arbitrage',      cagr5y:6.2,  cagr3y:6.8,  ret1y:7.2, sharpe:1.20, stddev:1.2  },
-  // Default fallback
-  'default':                  { name:'Nifty 100 TRI',           cagr5y:13.2, cagr3y:14.0, ret1y:0.8, sharpe:0.95, stddev:12.8 },
+  'Balanced Advantage Fund':   { name:'CRISIL Hybrid 50+50 Aggr',cagr5y:10.8, cagr3y:11.2, ret1y:3.5,  sharpe:0.78, stddev:9.8,  calendarReturns:CALENDAR.CRISIL_H },
+  'Aggressive Hybrid Fund':    { name:'CRISIL Hybrid 65+35 Aggr',cagr5y:12.1, cagr3y:12.8, ret1y:1.8,  sharpe:0.82, stddev:11.2, calendarReturns:CALENDAR.CRISIL_H65 },
+  'Conservative Hybrid Fund':  { name:'CRISIL Hybrid 25+75 Cons',cagr5y:8.4,  cagr3y:8.8,  ret1y:4.2,  sharpe:0.72, stddev:7.2,  calendarReturns:CALENDAR.CRISIL_H },
+  'Multi Asset Allocation Fund':{ name:'CRISIL Multi Asset',      cagr5y:11.2, cagr3y:11.8, ret1y:3.8,  sharpe:0.80, stddev:10.1, calendarReturns:CALENDAR.CRISIL_MA },
+  'Equity Savings Fund':       { name:'Nifty Equity Savings',    cagr5y:8.8,  cagr3y:9.2,  ret1y:4.8,  sharpe:0.85, stddev:6.8,  calendarReturns:CALENDAR.CRISIL_H },
+  'Arbitrage Fund':            { name:'Nifty 50 Arbitrage',      cagr5y:6.2,  cagr3y:6.8,  ret1y:7.2,  sharpe:1.20, stddev:1.2,  calendarReturns:CALENDAR.CRISIL_H },
+  // Default
+  'default':                   { name:'Nifty 100 TRI',           cagr5y:13.2, cagr3y:14.0, ret1y:0.8,  sharpe:0.95, stddev:12.8, calendarReturns:CALENDAR.NIFTY100 },
 };
 
 function getBenchmark(sebiCategory) {
@@ -272,7 +260,7 @@ async function fetchFundData(fund) {
   // Fetch with date limit - prevents timeout for large funds like Kotak Flexicap
   // Try 5-year window first, fall back to 3-year if still slow
   const startYear = new Date().getFullYear() - 6;
-  const r = await httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}?startDate=01-01-${startYear}`, 20000);
+  const r = await httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}?startDate=01-01-${startYear}`, 30000);
   if (r.status !== 200) return { fund, amt, error: `HTTP ${r.status}` };
 
   const mf = JSON.parse(r.body);
@@ -294,11 +282,17 @@ async function fetchFundData(fund) {
   const investCAGR = navInvest && yearsHeld ? cagr(navInvest, latestNav, yearsHeld) : null;
   const gain = currentValue ? currentValue - amt : null;
 
-  // Use category-appropriate calendar year benchmarks
-  const isHybridCat = (mf.meta?.scheme_category||'').toLowerCase().match(/balanced|hybrid|multi asset|dynamic/);
-  const BM = isHybridCat
-    ? {2020:8.4, 2021:17.1, 2022:3.2, 2023:15.1, 2024:10.4, 2025:3.2}  // CRISIL Hybrid 50+50
-    : {2020:15.2, 2021:24.1, 2022:4.8, 2023:22.3, 2024:12.8, 2025:6.5}; // Nifty 100 TRI
+  // Get category-appropriate benchmark for this fund
+  const fundBenchmark = getBenchmark(mf.meta?.scheme_category);
+  const bmCal = fundBenchmark.calendarReturns || {};
+  const BM = {
+    2020: parseFloat(bmCal['2020'])||15.5,
+    2021: parseFloat(bmCal['2021'])||25.8,
+    2022: parseFloat(bmCal['2022'])||5.0,
+    2023: parseFloat(bmCal['2023'])||24.1,
+    2024: parseFloat(bmCal['2024'])||15.0,
+    2025: parseFloat(bmCal['2025'])||3.3,
+  };
   const cal = {};
   const isHybridFund = (mf.meta?.scheme_category||'').toLowerCase().includes('balanced') ||
                        (mf.meta?.scheme_category||'').toLowerCase().includes('hybrid') ||
@@ -660,7 +654,7 @@ function buildReport(funds, results, knowledge) {
 // ── MAIN ANALYSIS ──────────────────────────────────────────────────────────
 async function runAnalysis(funds) {
   console.log(`\n[Phase 1] Fetching AMFI for ${funds.length} funds in parallel`);
-  const FUND_TIMEOUT = 25000;
+  const FUND_TIMEOUT = 35000; // 35s to handle large funds like Kotak Flexicap
   const results = await Promise.all(funds.map(async fund => {
     console.log(`  → ${fund.name}`);
     try {

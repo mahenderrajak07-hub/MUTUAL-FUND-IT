@@ -487,9 +487,9 @@ decision=Hold if 5Y alpha>0, Switch if alpha -1% to 0%, Exit if alpha < -1%.`;
 
 // ── BUILD FULL REPORT ON SERVER ───────────────────────────────────────────
 function buildReport(funds, results, knowledge) {
-  const kFunds = knowledge?.funds || [];
+  const kFunds = (knowledge?.funds || []).filter(k => k && k.name && typeof k.name === 'string');
   const kMap = {};
-  for (const k of kFunds) { if (k.name) kMap[k.name.toLowerCase().trim()] = k; }
+  for (const k of kFunds) { kMap[k.name.toLowerCase().trim()] = k; }
   const getK = name => {
     const direct = kMap[name.toLowerCase().trim()];
     if (direct) return direct;

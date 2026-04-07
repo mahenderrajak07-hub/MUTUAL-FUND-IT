@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FundAudit — Institutional Portfolio Analysis</title>
+<title>JD MF Report — Institutional Portfolio Analysis</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{--ink:#0D0D0D;--paper:#F7F5F0;--cream:#EDE9E0;--gold:#C8A96E;--gold-light:#F0E4C8;--gold-dark:#9A7840;--green:#2D6A4F;--green-bg:#D8F3DC;--red:#9B2226;--red-bg:#FFDDD2;--amber:#7B5E00;--amber-bg:#FFF3CD;--blue:#1B4F72;--blue-bg:#D6EAF8;--muted:#6B6560;--border:#DDD8CF;--shadow:0 2px 8px rgba(13,13,13,.07),0 8px 24px rgba(13,13,13,.05)}
@@ -120,7 +120,7 @@ footer a{color:var(--gold);text-decoration:none}
 <body>
 
 <nav>
-  <div class="nav-logo">Fund<span>Audit</span></div>
+  <div class="nav-logo">JD MF<span> Report</span></div>
   <div class="nav-tag">Free · No Login · Instant</div>
 </nav>
 
@@ -231,7 +231,7 @@ footer a{color:var(--gold);text-decoration:none}
 <div class="toast" id="toast"></div>
 
 <footer>
-  FundAudit is powered by Claude AI. Analysis is for research and educational purposes only — not investment advice.<br>
+  JD MF Report is powered by Claude AI. Analysis is for research and educational purposes only — not investment advice.<br>
   Always consult a SEBI-registered investment advisor before making portfolio changes.<br><br>
   Data: AMFI · Value Research · Tickertape · April 2026
 </footer>
@@ -634,13 +634,13 @@ function downloadReport(){
 <html><head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>FundAudit Report — ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</title>
+<title>JD MF Report — ${new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'})}</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
 <style>${standaloneCss}</style>
 </head><body>${html}</body></html>`;
   const a=document.createElement('a');
   a.href='data:text/html;charset=utf-8,'+encodeURIComponent(full);
-  a.download='FundAudit_Report_'+new Date().toISOString().slice(0,10)+'.html';
+  a.download='JD_MF_Report_'+new Date().toISOString().slice(0,10)+'.html';
   a.click();showToast('Report downloaded');
 }
 

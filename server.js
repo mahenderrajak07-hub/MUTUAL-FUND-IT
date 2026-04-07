@@ -259,8 +259,8 @@ async function fetchFundData(fund) {
 
   // Fetch with date limit - prevents timeout for large funds like Kotak Flexicap
   // Try 5-year window first, fall back to 3-year if still slow
-  const startYear = new Date().getFullYear() - 5; // 5 years only = less data = faster
-  const r = await httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}?startDate=01-01-${startYear}`, 25000);
+  const startYear = new Date().getFullYear() - 3; // 3 years only — prevents timeout on large funds
+  const r = await httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}?startDate=01-01-${startYear}`, 18000);
   if (r.status !== 200) return { fund, amt, error: `HTTP ${r.status}` };
 
   const mf = JSON.parse(r.body);
@@ -656,7 +656,7 @@ function buildReport(funds, results, knowledge) {
 // ── MAIN ANALYSIS ──────────────────────────────────────────────────────────
 async function runAnalysis(funds) {
   console.log(`\n[Phase 1] Fetching AMFI for ${funds.length} funds in parallel`);
-  const FUND_TIMEOUT = 30000; // 30s per fund
+  const FUND_TIMEOUT = 22000; // 22s — matches 18s fetch + buffer
   const results = await Promise.all(funds.map(async fund => {
     console.log(`  → ${fund.name}`);
     try {

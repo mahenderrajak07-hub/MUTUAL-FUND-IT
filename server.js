@@ -257,44 +257,41 @@ async function fetchFundData(fund) {
   const scheme = await searchFund(fund.name);
   if (!scheme) return { fund, amt, error: 'Not found in AMFI' };
 
-  // Targeted NAV fetch — get only specific dates needed instead of full history
-  // This avoids timeouts on large old funds (Nippon 1995, ICICI Pru 2008 etc.)
-  const fmtDate = d => {
+  // Fetch NAV data in parallel: 13-month main + tiny windows for 3Y and 5Y
+  // This avoids downloading full 20-year history which times out on old funds
+  const today = new Date();
+  const fmtD = d => {
     const dd = String(d.getDate()).padStart(2,'0');
     const mm = String(d.getMonth()+1).padStart(2,'0');
     return `${dd}-${mm}-${d.getFullYear()}`;
   };
-  const today = new Date();
-  const d1y = new Date(today); d1y.setFullYear(today.getFullYear()-1);
-  const d3y = new Date(today); d3y.setFullYear(today.getFullYear()-3);
-  const d5y = new Date(today); d5y.setFullYear(today.getFullYear()-5);
+  // Date points needed
+  const d13m = new Date(today); d13m.setMonth(today.getMonth()-13);
+  const d3y  = new Date(today); d3y.setFullYear(today.getFullYear()-3);
+  const d5y  = new Date(today); d5y.setFullYear(today.getFullYear()-5);
 
-  // Fetch latest NAV + 1 year of history (for 1Y CAGR and recent calendar years)
-  const startYear = today.getFullYear() - 1;
-  const rNav = await httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}?startDate=01-04-${startYear}`, 18000);
-  if (rNav.status !== 200) return { fund, amt, error: `HTTP ${rNav.status}` };
+  // Parallel fetch: main 13-month history + 7-day windows around 3Y and 5Y dates
+  const [rMain, r3y, r5y] = await Promise.all([
+    httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}?startDate=${fmtD(d13m)}`, 15000),
+    httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}?startDate=${fmtD(d3y)}`, 8000)
+      .then(r => r.status===200 ? r : null).catch(() => null),
+    httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}?startDate=${fmtD(d5y)}`, 8000)
+      .then(r => r.status===200 ? r : null).catch(() => null),
+  ]);
 
-  const mf = JSON.parse(rNav.body);
-  let nav = mf.data;
+  if (!rMain || rMain.status !== 200) return { fund, amt, error: `NAV fetch failed` };
+
+  const mf = JSON.parse(rMain.body);
+  const nav = mf.data;
   const latestNav = parseFloat(nav[0].nav);
   const latestDate = nav[0].date;
 
-  // Fetch 3Y and 5Y NAV using date-specific endpoint (tiny fast requests)
-  const getNavOnDate = async (d) => {
-    for (let offset = 0; offset <= 7; offset++) {
-      const tryD = new Date(d); tryD.setDate(tryD.getDate() - offset);
-      const resp = await httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}/date/${fmtDate(tryD)}`, 5000).catch(() => null);
-      if (resp && resp.status === 200) {
-        const data = JSON.parse(resp.body);
-        if (data.data?.nav) return parseFloat(data.data.nav);
-      }
-    }
-    return null;
-  };
-
-  const [nav3yVal, nav5yVal] = await Promise.all([getNavOnDate(d3y), getNavOnDate(d5y)]);
-  const nav1yVal = navAt(nav, d1y);
-
+  // Get 3Y and 5Y NAV values from their respective windows (last entry = closest to target date)
+  const nav3yArr = (r3y && r3y.status===200) ? JSON.parse(r3y.body).data : [];
+  const nav5yArr = (r5y && r5y.status===200) ? JSON.parse(r5y.body).data : [];
+  const nav3yVal = nav3yArr.length ? parseFloat(nav3yArr[nav3yArr.length-1].nav) : null;
+  const nav5yVal = nav5yArr.length ? parseFloat(nav5yArr[nav5yArr.length-1].nav) : null;
+  const nav1yVal = navAt(nav, new Date(today.getFullYear()-1, today.getMonth(), today.getDate()));
 
   // Compute CAGR using targeted fetched NAVs
   const latestD = parseD(latestDate) || new Date();

@@ -418,7 +418,7 @@ function buildDashboard(d,funds){
     <th style="width:20%">Fund</th>
     <th class="d-nr">5Y CAGR</th><th class="d-nr">3Y CAGR</th><th class="d-nr">1Y</th>
     <th class="d-nr">Sharpe</th><th class="d-nr">Beta</th><th class="d-nr">StdDev</th><th class="d-nr">Alpha</th>
-    <th class="d-nr">TER</th><th class="d-nc">Risk</th>
+    <th class="d-nr">TER</th><th class="d-nc">SEBI Risk</th>
     <th class="d-nc">Tenure</th><th class="d-nc">Quality</th><th class="d-nc">Decision</th>
   </tr></thead><tbody>
   ${F.map(f=>`<tr>
@@ -433,13 +433,16 @@ function buildDashboard(d,funds){
     <td class="d-nc"><span class="d-vd ${qualColor(f.quality)}">${f.quality}</span></td>
     <td class="d-nc"><span class="d-vd ${decColor(f.decision)}">${f.decision==='Switch'?'⇄ Switch':f.decision==='Exit'?'✗ Exit':'✔ Hold'}</span></td>
   </tr>`).join('')}
-  <tr style="background:var(--paper)">
-    ${(d.benchmarkRows||[B]).map(bm=>`<td style="color:var(--muted);font-size:10px">${bm.name||'Nifty 100 TRI'}</td>
-    <td class="d-nr d-b">${bm.cagr5y||B.cagr5y}%</td><td class="d-nr d-b">${bm.cagr3y||B.cagr3y}%</td><td class="d-nr d-b">+${bm.ret1y||B.ret1y}%</td>
-    <td class="d-nr d-b">${bm.sharpe||B.sharpe}</td><td class="d-nr d-b">1.00</td><td class="d-nr d-b">${bm.stddev||B.stddev}%</td>
+  ${(d.benchmarkRows||[B]).map(bm=>`<tr style="background:var(--paper)">
+    <td style="color:var(--muted);font-size:10px;min-width:120px">${bm.name||'Nifty 100 TRI'}</td>
+    <td class="d-nr d-b">${typeof bm.cagr5y==='number'?bm.cagr5y.toFixed(1)+'%':bm.cagr5y||B.cagr5y}</td>
+    <td class="d-nr d-b">${typeof bm.cagr3y==='number'?bm.cagr3y.toFixed(1)+'%':bm.cagr3y||B.cagr3y}</td>
+    <td class="d-nr d-b">${typeof bm.ret1y==='number'?(bm.ret1y>=0?'+':'')+bm.ret1y.toFixed(1)+'%':bm.ret1y||B.ret1y}</td>
+    <td class="d-nr d-b">${bm.sharpe||B.sharpe}</td><td class="d-nr d-b">1.00</td>
+    <td class="d-nr d-b">${typeof bm.stddev==='number'?bm.stddev.toFixed(1)+'%':bm.stddev||B.stddev}</td>
     <td class="d-nr d-b">—</td><td class="d-nr d-b">0.10%</td><td class="d-nc">—</td>
-    <td colspan="3" class="d-nc" style="color:var(--muted)">Benchmark</td>`).join('</tr><tr style="background:var(--paper)">')}
-  </tr></tbody></table></div></div>`;
+    <td colspan="3" class="d-nc" style="color:var(--muted)">Benchmark</td>
+  </tr>`).join('')}</tbody></table></div></div>`;
 
   h+=`<div style="margin-bottom:1.25rem"><div class="d-sec-hd">Calendar year heatmap</div>
   <div class="d-card" style="padding:0;overflow:hidden;overflow-x:auto"><table class="d-tbl"><thead><tr>

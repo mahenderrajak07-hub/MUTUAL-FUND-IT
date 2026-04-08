@@ -46,7 +46,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 2rem
 /* INPUT CARD */
 .container{max-width:880px;margin:0 auto;padding:0 1.5rem}
 .input-card{
-  background:linear-gradient(160deg,rgba(22,17,5,0.98) 0%,rgba(14,11,3,0.98) 100%);
+  background:linear-gradient(160deg,rgba(28,22,8,0.97) 0%,rgba(20,16,5,0.97) 100%);
   border:1px solid rgba(245,158,11,0.18);
   border-radius:20px;
   box-shadow:0 8px 48px rgba(0,0,0,0.5),0 0 0 1px rgba(245,158,11,0.06) inset;
@@ -66,25 +66,30 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 2rem
 .fund-rows{display:flex;flex-direction:column;gap:10px;padding:0 1.75rem;margin-bottom:0.5rem;}
 .fund-row{display:grid;grid-template-columns:2fr 1fr 1fr 32px;gap:10px;align-items:center;}
 .ic-input-wrap{position:relative;display:flex;align-items:center;}
-.ic-input-icon{position:absolute;left:12px;color:rgba(245,158,11,0.35);pointer-events:none;flex-shrink:0;}
-.ic-input-prefix{position:absolute;left:12px;font-size:13px;color:rgba(245,158,11,0.5);font-weight:600;pointer-events:none;}
+.ic-input-icon{position:absolute;left:12px;color:rgba(245,158,11,0.55);pointer-events:none;flex-shrink:0;}
+.ic-input-prefix{position:absolute;left:12px;font-size:13px;color:rgba(245,158,11,0.7);font-weight:600;pointer-events:none;}
 .ic-inp{
   width:100%;padding:11px 12px 11px 34px;
-  border:1px solid rgba(245,158,11,0.12);
+  border:1px solid rgba(255,255,255,0.1);
   border-radius:10px;font-size:13px;
-  background:rgba(5,4,0,0.6);
+  background:rgba(255,255,255,0.07);
   color:#fff;
-  transition:border .18s,box-shadow .18s;
+  transition:border .18s,box-shadow .18s,background .18s;
   outline:none;font-family:'Inter',sans-serif;
+  letter-spacing:0.1px;
 }
 .ic-inp-amt{padding-left:28px;}
 .ic-inp-date{padding-left:34px;}
-.ic-inp::placeholder{color:rgba(255,255,255,0.18);font-size:12px;}
-.ic-inp:focus{border-color:rgba(245,158,11,0.45);box-shadow:0 0 0 3px rgba(245,158,11,0.08),0 1px 4px rgba(0,0,0,0.3);}
-.ic-inp:hover{border-color:rgba(245,158,11,0.25);}
+.ic-inp::placeholder{color:rgba(255,255,255,0.28);font-size:12px;font-weight:400;}
+.ic-inp:focus{
+  border-color:rgba(245,158,11,0.55);
+  background:rgba(255,255,255,0.1);
+  box-shadow:0 0 0 3px rgba(245,158,11,0.1),0 1px 6px rgba(0,0,0,0.25);
+}
+.ic-inp:hover{border-color:rgba(255,255,255,0.2);background:rgba(255,255,255,0.09);}
 .remove-btn{background:none;border:none;color:rgba(255,255,255,0.15);cursor:pointer;padding:6px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:all .15s;}
 .remove-btn:hover{color:#ef4444;background:rgba(239,68,68,0.08);}
-.ic-label{color:rgba(245,158,11,0.4);}
+.ic-label{color:rgba(245,158,11,0.6);font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;}
 .ic-controls{display:flex;align-items:center;justify-content:space-between;padding:0.6rem 1.75rem 0.8rem;flex-wrap:wrap;gap:8px;}
 .add-btn{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--gold);background:none;border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:7px 14px;cursor:pointer;transition:all .18s;font-family:'Inter',sans-serif;}
 .add-btn:hover{background:rgba(245,158,11,0.07);border-color:rgba(245,158,11,0.4);}
@@ -483,7 +488,22 @@ const EX={
   single:[{name:'Nippon India Large Cap Fund',amt:'₹10,00,000',date:'01-Jan-2020'}]
 };
 
-function addRow(){const rows=document.getElementById('fund-rows');const d=document.createElement('div');d.className='fund-row';d.innerHTML=`<input type="text" placeholder="Fund name" class="fund-name"/><input type="text" placeholder="₹2,00,000" class="fund-amt"/><input type="text" placeholder="DD-Mon-YYYY" class="fund-date"/><button class="remove-btn" onclick="removeRow(this)">×</button>`;rows.appendChild(d);d.querySelector('input').focus();}
+function addRow(){const rows=document.getElementById('fund-rows');const d=document.createElement('div');d.className='fund-row';d.innerHTML=`
+  <div class="ic-input-wrap">
+    <svg class="ic-input-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="10" rx="2" stroke="currentColor" stroke-width="1.1"/><path d="M4 6h6M4 9h4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+    <input type="text" placeholder="e.g. Nippon India Large Cap" class="fund-name ic-inp"/>
+  </div>
+  <div class="ic-input-wrap">
+    <span class="ic-input-prefix">₹</span>
+    <input type="text" placeholder="5,00,000" class="fund-amt ic-inp ic-inp-amt"/>
+  </div>
+  <div class="ic-input-wrap">
+    <svg class="ic-input-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.1"/><path d="M1 6h12M4 1v2M10 1v2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg>
+    <input type="text" placeholder="01-Apr-2020" class="fund-date ic-inp ic-inp-date"/>
+  </div>
+  <button class="remove-btn" onclick="removeRow(this)">
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+  </button>`;rows.appendChild(d);d.querySelector('input').focus();}
 function removeRow(btn){const rows=document.getElementById('fund-rows');if(rows.children.length>1)btn.closest('.fund-row').remove();}
 function loadEx(k){const d=EX[k];const rows=document.getElementById('fund-rows');rows.innerHTML='';d.forEach(f=>{const div=document.createElement('div');div.className='fund-row';div.innerHTML=`<input type="text" value="${f.name}" class="fund-name"/><input type="text" value="${f.amt}" class="fund-amt"/><input type="text" value="${f.date}" class="fund-date"/><button class="remove-btn" onclick="removeRow(this)">×</button>`;rows.appendChild(div);});}
 function getFunds(){return Array.from(document.querySelectorAll('.fund-row')).map(r=>({name:r.querySelector('.fund-name').value.trim(),amt:r.querySelector('.fund-amt').value.trim(),date:r.querySelector('.fund-date').value.trim()})).filter(f=>f.name&&f.amt);}

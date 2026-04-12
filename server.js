@@ -50,7 +50,7 @@ function httpsGet(hostname, reqPath, timeout = 20000) {
 // ── FUND SEARCH ────────────────────────────────────────────────────────────
 function generateQueries(name) {
   const queries = [name];
-  const fixes = { 'pru ':'prudential ', 'pudential':'prudential', 'advanatge':'advantage', 'advantge':'advantage', 'flexi cap':'flexicap', 'flexicap':'flexi cap', 'mid cap':'midcap', 'midcap':'mid cap', 'large cap':'largecap', 'largecap':'large cap', 'small cap':'smallcap', 'multi cap':'multicap', 'etf fof':'etf fund of fund', 'fof':'fund of fund', 'gold etf':'gold' };
+  const fixes = { 'pru ':'prudential ', 'pudential':'prudential', 'advanatge':'advantage', 'advantge':'advantage', 'flexi cap':'flexicap', 'flexicap':'flexi cap', 'mid cap':'midcap', 'midcap':'mid cap', 'large cap':'largecap', 'largecap':'large cap', 'small cap':'smallcap', 'multi cap':'multicap' };
   let lower = name.toLowerCase();
   for (const [a, b] of Object.entries(fixes)) { if (lower.includes(a)) queries.push(lower.replace(a, b)); }
   const words = name.split(/\s+/).filter(w => w.length > 3 && !['fund','plan','option','growth','regular','direct','india'].includes(w.toLowerCase()));
@@ -86,22 +86,17 @@ function pickBest(schemes, userInput) {
     if (n.includes('bonus')) score -= 30;
 
     // Hard-reject completely wrong fund types (unless user asked for them)
-    const isGold = input.includes('gold');
-    const isEtfFof = input.includes('etf') || input.includes('fof');
     if (!isDebt) {
-      if (n.includes('overnight')) score -= 200;
-      if (n.includes('liquid')) score -= 200;
+      if (n.includes('overnight')) score -= 200;       // CRITICAL: overnight funds have crazy NAV
+      if (n.includes('liquid')) score -= 200;          // CRITICAL: liquid fund NAV ~2000+
       if (n.includes('money market')) score -= 200;
       if (n.includes('ultra short')) score -= 150;
       if (n.includes('low duration')) score -= 100;
-      if (!isEtfFof && !isGold && n.includes('gilt')) score -= 100;
+      if (n.includes('gilt')) score -= 100;
       if (n.includes('credit risk')) score -= 100;
       if (n.includes('banking and psu bond')) score -= 100;
       if (n.includes(' debt ') || n.includes('-debt-')) score -= 100;
     }
-    // Reward gold/ETF matches
-    if (isGold && n.includes('gold')) score += 30;
-    if (isEtfFof && (n.includes('etf') || n.includes('fund of fund'))) score += 20;
     if (!isBalanced) {
       if (n.includes('balanced advantage') && !input.includes('advantage')) score -= 50;
     }
@@ -262,48 +257,22 @@ async function fetchFundData(fund) {
   const scheme = await searchFund(fund.name);
   if (!scheme) return { fund, amt, error: 'Not found in AMFI' };
 
-  // PERMANENT FIX: Narrow-window fetches — guaranteed tiny responses for ALL funds
-  // Problem: mfapi.in ignores startDate for old funds (ICICI 1994, LIC, etc.)
-  //          returning 7000+ records → JSON.parse takes 5-10s → timeout
-  // Solution: Use startDate+endDate narrow 7-day windows for each point needed
-  //           7-day window → max 5 records → instant regardless of fund age
+  // PARALLEL FETCH STRATEGY - works for all funds regardless of age
+  // 1. /latest = current NAV (instant, ~200 bytes)
+  // 2. 3Y history = gives 1Y/3Y CAGR + calendar 2022-2025
+  // 3. 5Y history = gives 5Y CAGR + calendar 2020-2021
   const today = new Date();
   const fmtD = d => String(d.getDate()).padStart(2,'0')+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+d.getFullYear();
-
-  // Target dates for CAGR computation
   const d1y = new Date(today); d1y.setFullYear(today.getFullYear()-1);
   const d3y = new Date(today); d3y.setFullYear(today.getFullYear()-3);
   const d5y = new Date(today); d5y.setFullYear(today.getFullYear()-5);
 
-  // Helper: 7-day window around a target date (handles weekends/holidays)
-  const window7 = d => {
-    const s = new Date(d); s.setDate(s.getDate()-4);
-    const e = new Date(d); e.setDate(e.getDate()+4);
-    return `?startDate=${fmtD(s)}&endDate=${fmtD(e)}`;
-  };
-  // Calendar year windows — narrow to Jan+Dec only for start/end NAV
-  const calWindow = yr => ({
-    s: `?startDate=01-01-${yr}&endDate=10-01-${yr}`,  // first week of year
-    e: `?startDate=22-12-${yr}&endDate=31-12-${yr}`,  // last week of year
-  });
-
-  // Fire all requests in parallel — 9 tiny requests, each returns ≤8 records
-  const code = scheme.schemeCode;
-  const [rLatest, r1y, r3y, r5y, rCal22s, rCal22e, rCal23s, rCal23e, rCal24s, rCal24e, rCal25s, rCal25e, rCal21s, rCal21e] = await Promise.all([
-    httpsGet('api.mfapi.in', `/mf/${code}/latest`, 6000),
-    httpsGet('api.mfapi.in', `/mf/${code}${window7(d1y)}`, 6000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${window7(d3y)}`, 6000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${window7(d5y)}`, 6000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2022).s}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2022).e}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2023).s}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2023).e}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2024).s}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2024).e}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2025).s}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2025).e}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2021).s}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2021).e}`, 5000).catch(()=>null),
+  const [rLatest, r3yr, r5yr] = await Promise.all([
+    httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}/latest`, 6000),
+    httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}?startDate=${fmtD(d3y)}`, 12000)
+      .catch(() => null),
+    httpsGet('api.mfapi.in', `/mf/${scheme.schemeCode}?startDate=${fmtD(d5y)}`, 12000)
+      .catch(() => null),
   ]);
 
   if (!rLatest || rLatest.status !== 200) return { fund, amt, error: 'NAV fetch failed' };
@@ -312,61 +281,25 @@ async function fetchFundData(fund) {
   const latestNav = parseFloat(latestInfo.data?.[0]?.nav || latestInfo.data?.nav || 0);
   const latestDate = latestInfo.data?.[0]?.date || latestInfo.data?.date || '';
   if (!latestNav) return { fund, amt, error: 'Invalid NAV data' };
+
   const mf = { meta: latestInfo.meta };
 
-  // Extract NAV from narrow-window response (take first valid record)
-  const navFromWindow = r => {
-    if (!r || r.status !== 200) return null;
-    try {
-      const data = JSON.parse(r.body).data;
-      return data?.length ? parseFloat(data[0].nav) : null;
-    } catch { return null; }
+  // Parse history arrays - mfapi may ignore startDate and return full history
+  // Limit to last 2000 records max to prevent parse slowdowns on large old funds
+  const parseNav = body => {
+    const data = JSON.parse(body).data;
+    return data.length > 2000 ? data.slice(0, 2000) : data; // newest 2000 records
   };
-  // For calendar: use last record of start-window as year-open, first of end-window as year-close
-  const calNavPair = (rs, re) => {
-    if (!rs || rs.status !== 200 || !re || re.status !== 200) return null;
-    try {
-      const ds = JSON.parse(rs.body).data; const de = JSON.parse(re.body).data;
-      if (!ds?.length || !de?.length) return null;
-      return { open: parseFloat(ds[ds.length-1].nav), close: parseFloat(de[0].nav) };
-    } catch { return null; }
-  };
+  const nav3yr = (r3yr?.status === 200) ? parseNav(r3yr.body) : [];
+  const nav5yr = (r5yr?.status === 200) ? parseNav(r5yr.body) : [];
 
-  const nav1yVal = navFromWindow(r1y);
-  const nav3yVal = navFromWindow(r3y);
-  const nav5yVal = navFromWindow(r5y);
+  // Use navAt() to find closest NAV to each target date - works even if startDate is ignored
+  const nav1yVal  = navAt(nav3yr, d1y);   // 1Y ago NAV from 3Y history
+  const nav3yVal  = navAt(nav3yr, d3y);   // 3Y ago NAV
+  const nav5yVal  = navAt(nav5yr, d5y) || navAt(nav3yr, d5y); // 5Y ago (fallback to 3Y array)
 
-  // Build calendar year returns from narrow windows
-  const calData = {
-    2021: calNavPair(rCal21s, rCal21e),
-    2022: calNavPair(rCal22s, rCal22e),
-    2023: calNavPair(rCal23s, rCal23e),
-    2024: calNavPair(rCal24s, rCal24e),
-    2025: calNavPair(rCal25s, rCal25e),
-  };
-
-  // Use nav array for invest-date lookup: fetch 13-month history only if needed
-  // For investDate lookup, we need a wider range — use a 3-month window around invest date
-  const investDate = parseD(fund.date);
-  let navInvest = null;
-  if (investDate) {
-    const invWindow = `?startDate=${fmtD(new Date(investDate.getTime()-15*86400000))}&endDate=${fmtD(new Date(investDate.getTime()+15*86400000))}`;
-    const rInv = await httpsGet('api.mfapi.in', `/mf/${code}${invWindow}`, 6000).catch(()=>null);
-    if (rInv?.status === 200) {
-      try {
-        const invData = JSON.parse(rInv.body).data;
-        if (invData?.length) navInvest = parseFloat(invData[invData.length-1].nav);
-      } catch {}
-    }
-  }
-
-  // Build a minimal nav array for navAt() compatibility (just the points we have)
-  const nav = [];
-  const addNavPoint = (navVal, date) => { if (navVal && date) nav.push({nav: navVal.toString(), date: fmtD(date)}); };
-  addNavPoint(latestNav, today);
-  addNavPoint(nav1yVal, d1y);
-  addNavPoint(nav3yVal, d3y);
-  addNavPoint(nav5yVal, d5y);
+  // Use nav3yr as primary nav array for calendar + invest date lookups
+  const nav = nav3yr.length ? nav3yr : nav5yr;
 
   // Compute CAGR using targeted fetched NAVs
   const latestD = parseD(latestDate) || new Date();
@@ -376,51 +309,55 @@ async function fetchFundData(fund) {
   const raw5y = cagr(nav5yVal, latestNav, 5);
   // Sanity cap: if CAGR is impossibly high, nav point was outside requested window
   // Small/mid cap can legitimately hit 30-35% 5Y. Gold ~20%. Anything >45% is a bad nav point.
-  // CAGR sanity caps — adjusted for gold/commodity funds which can legitimately be high
-  const isGoldFund = (mf.meta?.scheme_category||'').toLowerCase().includes('gold') ||
-                     (scheme.schemeName||'').toLowerCase().includes('gold');
-  const MAX5 = isGoldFund ? 55 : 40;  // Gold 5Y can legitimately hit 20-25%
-  const MAX3 = isGoldFund ? 70 : 55;
+  const MAX5 = 45, MAX3 = 60;
   const ret1y = raw1y;
   const ret3y = (raw3y != null && raw3y > MAX3) ? null : raw3y;
   const ret5y = (raw5y != null && raw5y > MAX5) ? null : raw5y;
   if (raw5y != null && raw5y > MAX5) console.warn('  [SANITY] 5Y=' + raw5y.toFixed(1) + '% capped for ' + scheme.schemeName);
   if (raw3y != null && raw3y > MAX3) console.warn('  [SANITY] 3Y=' + raw3y.toFixed(1) + '% capped for ' + scheme.schemeName);
 
-  // Invest date lookup — already computed above with narrow window
+  const investDate = parseD(fund.date);
+  const navInvest = investDate ? navAt(nav, investDate) : null;
   const yearsHeld = investDate ? (Date.now()-investDate)/(365.25*86400000) : null;
   const currentValue = navInvest ? amt * latestNav / navInvest : null;
   const investCAGR = navInvest && yearsHeld ? cagr(navInvest, latestNav, yearsHeld) : null;
   const gain = currentValue ? currentValue - amt : null;
 
-  // Category-appropriate benchmark for calendar Beat comparison
+  // Get category-appropriate benchmark for this fund
   const fundBenchmark = getBenchmark(latestInfo.meta?.scheme_category);
   const bmCal = fundBenchmark.calendarReturns || {};
   const BM = {
     2020: parseFloat(bmCal['2020'])||15.5,
-    2021: parseFloat(bmCal['2021'])||17.1,
+    2021: parseFloat(bmCal['2021'])||25.8,
     2022: parseFloat(bmCal['2022'])||5.0,
-    2023: parseFloat(bmCal['2023'])||15.1,
-    2024: parseFloat(bmCal['2024'])||10.4,
+    2023: parseFloat(bmCal['2023'])||24.1,
+    2024: parseFloat(bmCal['2024'])||15.0,
     2025: parseFloat(bmCal['2025'])||3.3,
   };
-
-  // Build cal from narrow-window calData (much more reliable than navAt on big arrays)
-  const isHybridFund = (latestInfo.meta?.scheme_category||'').toLowerCase().match(/balanced|hybrid|multi asset/);
-  const maxCal = isHybridFund ? 40 : 65;
-  const minCal = isHybridFund ? -25 : -45;
   const cal = {};
+  const isHybridFund = (latestInfo.meta?.scheme_category||'').toLowerCase().includes('balanced') ||
+                       (mf.meta?.scheme_category||'').toLowerCase().includes('hybrid') ||
+                       (mf.meta?.scheme_category||'').toLowerCase().includes('multi asset');
+    const maxReasonableReturn = isHybridFund ? 40 : 65;
+  const minReasonableReturn = isHybridFund ? -25 : -45;
+
   for (const yr of [2020,2021,2022,2023,2024,2025]) {
-    const pair = calData[yr];
-    let rv = null;
-    if (pair && pair.open > 0 && pair.close > 0) {
-      rv = (pair.close - pair.open) / pair.open * 100;
-      if (rv < minCal || rv > maxCal) rv = null; // sanity cap
+    const s = navAt(nav, new Date(yr,0,3));
+    const e = navAt(nav, new Date(yr,11,29));
+    let rv = (s&&e) ? ((e-s)/s*100) : null;
+    // Sanity check: if return is unrealistic, mark as null (bad data)
+    if (rv !== null && (rv < minReasonableReturn || rv > maxReasonableReturn)) {
+      console.warn(`  [CAL SANITY] ${yr} return ${rv.toFixed(1)}% out of range — marking N/A`);
+      rv = null;
+    }
+    // Also check: if both start and end NAVs are almost identical (< 0.1% apart),
+    // it likely means the fund didn't exist / had no trading that year
+    if (s && e && Math.abs(e-s)/s < 0.001) {
+      rv = null; // Not enough price movement - likely wrong data
     }
     cal[yr] = rv;
-    cal[yr+'Beat'] = rv != null ? rv > BM[yr] : false;
+    cal[yr+'Beat'] = rv!=null ? rv > BM[yr] : false;
   }
-
 
   // Sanity check: if returns are clearly impossible, it's likely a wrong fund match
   const calVals = Object.entries(cal).filter(([k,v]) => !k.includes('Beat') && v !== null).map(([,v]) => parseFloat(v));

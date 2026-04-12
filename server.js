@@ -50,7 +50,7 @@ function httpsGet(hostname, reqPath, timeout = 20000) {
 // ── FUND SEARCH ────────────────────────────────────────────────────────────
 function generateQueries(name) {
   const queries = [name];
-  const fixes = { 'pru ':'prudential ', 'pudential':'prudential', 'advanatge':'advantage', 'advantge':'advantage', 'flexi cap':'flexicap', 'flexicap':'flexi cap', 'mid cap':'midcap', 'midcap':'mid cap', 'large cap':'largecap', 'largecap':'large cap', 'small cap':'smallcap', 'multi cap':'multicap' };
+  const fixes = { 'pru ':'prudential ', 'pudential':'prudential', 'advanatge':'advantage', 'advantge':'advantage', 'flexi cap':'flexicap', 'flexicap':'flexi cap', 'mid cap':'midcap', 'midcap':'mid cap', 'large cap':'largecap', 'largecap':'large cap', 'small cap':'smallcap', 'multi cap':'multicap', 'etf fof':'etf fund of fund', 'fof':'fund of fund', 'gold etf':'gold' };
   let lower = name.toLowerCase();
   for (const [a, b] of Object.entries(fixes)) { if (lower.includes(a)) queries.push(lower.replace(a, b)); }
   const words = name.split(/\s+/).filter(w => w.length > 3 && !['fund','plan','option','growth','regular','direct','india'].includes(w.toLowerCase()));
@@ -86,17 +86,22 @@ function pickBest(schemes, userInput) {
     if (n.includes('bonus')) score -= 30;
 
     // Hard-reject completely wrong fund types (unless user asked for them)
+    const isGold = input.includes('gold');
+    const isEtfFof = input.includes('etf') || input.includes('fof');
     if (!isDebt) {
-      if (n.includes('overnight')) score -= 200;       // CRITICAL: overnight funds have crazy NAV
-      if (n.includes('liquid')) score -= 200;          // CRITICAL: liquid fund NAV ~2000+
+      if (n.includes('overnight')) score -= 200;
+      if (n.includes('liquid')) score -= 200;
       if (n.includes('money market')) score -= 200;
       if (n.includes('ultra short')) score -= 150;
       if (n.includes('low duration')) score -= 100;
-      if (n.includes('gilt')) score -= 100;
+      if (!isEtfFof && !isGold && n.includes('gilt')) score -= 100;
       if (n.includes('credit risk')) score -= 100;
       if (n.includes('banking and psu bond')) score -= 100;
       if (n.includes(' debt ') || n.includes('-debt-')) score -= 100;
     }
+    // Reward gold/ETF matches
+    if (isGold && n.includes('gold')) score += 30;
+    if (isEtfFof && (n.includes('etf') || n.includes('fund of fund'))) score += 20;
     if (!isBalanced) {
       if (n.includes('balanced advantage') && !input.includes('advantage')) score -= 50;
     }
@@ -264,7 +269,7 @@ async function fetchFundData(fund) {
   const today = new Date();
   const fmtD = d => String(d.getDate()).padStart(2,'0')+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+d.getFullYear();
   const d1y = new Date(today); d1y.setFullYear(today.getFullYear()-1);
-  const d3y = new Date(today); d3y.setFullYear(today.getFullYear()-3);
+  const d3y = new Date(today); d3y.setFullYear(today.getFullYear()-4);
   const d5y = new Date(today); d5y.setFullYear(today.getFullYear()-5);
 
   const [rLatest, r3yr, r5yr] = await Promise.all([
@@ -309,7 +314,11 @@ async function fetchFundData(fund) {
   const raw5y = cagr(nav5yVal, latestNav, 5);
   // Sanity cap: if CAGR is impossibly high, nav point was outside requested window
   // Small/mid cap can legitimately hit 30-35% 5Y. Gold ~20%. Anything >45% is a bad nav point.
-  const MAX5 = 45, MAX3 = 60;
+  // CAGR sanity caps — adjusted for gold/commodity funds which can legitimately be high
+  const isGoldFund = (mf.meta?.scheme_category||'').toLowerCase().includes('gold') ||
+                     (scheme.schemeName||'').toLowerCase().includes('gold');
+  const MAX5 = isGoldFund ? 55 : 40;  // Gold 5Y can legitimately hit 20-25%
+  const MAX3 = isGoldFund ? 70 : 55;
   const ret1y = raw1y;
   const ret3y = (raw3y != null && raw3y > MAX3) ? null : raw3y;
   const ret5y = (raw5y != null && raw5y > MAX5) ? null : raw5y;

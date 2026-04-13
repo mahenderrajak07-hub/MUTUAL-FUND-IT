@@ -278,7 +278,7 @@ async function fetchFundData(fund) {
   const amt = parseFloat(fund.amt.replace(/[₹,\s]/g,'')) || 0;
   const scheme = await searchFund(fund.name);
   if (!scheme) return { fund, amt, error: 'Not found in AMFI' };
-  console.log(`  [✓] "${fund.name}" → ${scheme.schemeName} (${scheme.schemeCode}) confidence:${scheme.confidence||'?'}%`);
+
 
   // PERMANENT FIX: Narrow-window fetches — guaranteed tiny responses for ALL funds
   // Problem: mfapi.in ignores startDate for old funds (ICICI 1994, LIC, etc.)
@@ -305,23 +305,30 @@ async function fetchFundData(fund) {
     e: `?startDate=22-12-${yr}&endDate=31-12-${yr}`,  // last week of year
   });
 
-  // Fire all requests in parallel — 9 tiny requests, each returns ≤8 records
+  // TWO-PHASE fetch — avoids mfapi.in rate-limiting from 14 simultaneous requests
+  // Phase A: CAGR points (critical) — 4 tiny requests in parallel
   const code = scheme.schemeCode;
-  const [rLatest, r1y, r3y, r5y, rCal22s, rCal22e, rCal23s, rCal23e, rCal24s, rCal24e, rCal25s, rCal25e, rCal21s, rCal21e] = await Promise.all([
+  const [rLatest, r1y, r3y, r5y] = await Promise.all([
     httpsGet('api.mfapi.in', `/mf/${code}/latest`, 6000),
     httpsGet('api.mfapi.in', `/mf/${code}${window7(d1y)}`, 6000).catch(()=>null),
     httpsGet('api.mfapi.in', `/mf/${code}${window7(d3y)}`, 6000).catch(()=>null),
     httpsGet('api.mfapi.in', `/mf/${code}${window7(d5y)}`, 6000).catch(()=>null),
+  ]);
+
+  // Phase B: Calendar windows — batched in 2 groups to stay under rate limit
+  const [rCal21s, rCal21e, rCal22s, rCal22e, rCal23s] = await Promise.all([
+    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2021).s}`, 5000).catch(()=>null),
+    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2021).e}`, 5000).catch(()=>null),
     httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2022).s}`, 5000).catch(()=>null),
     httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2022).e}`, 5000).catch(()=>null),
     httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2023).s}`, 5000).catch(()=>null),
+  ]);
+  const [rCal23e, rCal24s, rCal24e, rCal25s, rCal25e] = await Promise.all([
     httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2023).e}`, 5000).catch(()=>null),
     httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2024).s}`, 5000).catch(()=>null),
     httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2024).e}`, 5000).catch(()=>null),
     httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2025).s}`, 5000).catch(()=>null),
     httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2025).e}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2021).s}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2021).e}`, 5000).catch(()=>null),
   ]);
 
   if (!rLatest || rLatest.status !== 200) return { fund, amt, error: 'NAV fetch failed' };
@@ -826,7 +833,7 @@ function buildReport(funds, results, knowledge) {
 // ── MAIN ANALYSIS ──────────────────────────────────────────────────────────
 async function runAnalysis(funds) {
   console.log(`\n[Phase 1] Fetching AMFI for ${funds.length} funds in parallel`);
-  const FUND_TIMEOUT = 22000; // 22s — matches 18s fetch + buffer
+  const FUND_TIMEOUT = 28000; // 28s — covers 3-phase fetch (6+5+5s) + Claude + buffer
   const results = await Promise.all(funds.map(async fund => {
     console.log(`  → ${fund.name}`);
     try {

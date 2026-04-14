@@ -56,6 +56,64 @@ function httpsGet(hostname, reqPath, timeout = 20000) {
 }
 
 // ── FUND SEARCH ────────────────────────────────────────────────────────────
+// Hardcoded lookup for popular funds — bypasses AMFI search entirely (instant, no network)
+// Format: normalized-key → { schemeCode, schemeName (official AMFI name) }
+const K = (code, name) => ({ schemeCode: code, schemeName: name });
+const KNOWN_SCHEMES = {
+  'hdfc mid cap opportunities': K(118989,'HDFC Mid-Cap Opportunities Fund - Regular Plan - Growth'),
+  'hdfc midcap opportunities':  K(118989,'HDFC Mid-Cap Opportunities Fund - Regular Plan - Growth'),
+  'hdfc mid-cap':               K(118989,'HDFC Mid-Cap Opportunities Fund - Regular Plan - Growth'),
+  'hdfc mid cap':               K(118989,'HDFC Mid-Cap Opportunities Fund - Regular Plan - Growth'),
+  'sbi bluechip':               K(119598,'SBI Blue Chip Fund - Regular Plan - Growth'),
+  'sbi blue chip':              K(119598,'SBI Blue Chip Fund - Regular Plan - Growth'),
+  'nippon india large cap':     K(106235,'Nippon India Large Cap Fund - Growth Plan - Growth Option'),
+  'nippon large cap':           K(106235,'Nippon India Large Cap Fund - Growth Plan - Growth Option'),
+  'icici prudential bluechip':  K(120586,'ICICI Prudential Bluechip Fund - Growth'),
+  'icici pru bluechip':         K(120586,'ICICI Prudential Bluechip Fund - Growth'),
+  'icici bluechip':             K(120586,'ICICI Prudential Bluechip Fund - Growth'),
+  'icici prudential large cap': K(120586,'ICICI Prudential Bluechip Fund - Growth'),
+  'icici pru large cap':        K(120586,'ICICI Prudential Bluechip Fund - Growth'),
+  'axis small cap':             K(125350,'Axis Small Cap Fund - Regular Plan - Growth'),
+  'axis small cap fund':        K(125350,'Axis Small Cap Fund - Regular Plan - Growth'),
+  'parag parikh flexi cap':     K(122640,'Parag Parikh Flexi Cap Fund - Regular Plan - Growth'),
+  'parag parikh flexicap':      K(122640,'Parag Parikh Flexi Cap Fund - Regular Plan - Growth'),
+  'mirae asset large cap':      K(118834,'Mirae Asset Large Cap Fund - Regular Plan - Growth'),
+  'mirae large cap':            K(118834,'Mirae Asset Large Cap Fund - Regular Plan - Growth'),
+  'kotak emerging equity':      K(131741,'Kotak Emerging Equity Fund - Regular Plan - Growth'),
+  'hdfc flexi cap':             K(100033,'HDFC Flexi Cap Fund - Regular Plan - Growth Option'),
+  'hdfc flexicap':              K(100033,'HDFC Flexi Cap Fund - Regular Plan - Growth Option'),
+  'lic flexi cap':              K(100313,'LIC MF Flexi Cap Fund-Regular Plan-Growth'),
+  'lic flexicap':               K(100313,'LIC MF Flexi Cap Fund-Regular Plan-Growth'),
+  'lic mf flexi cap':           K(100313,'LIC MF Flexi Cap Fund-Regular Plan-Growth'),
+  'sundaram balanced advantage':K(118825,'Sundaram Balanced Advantage Fund Regular Plan Growth'),
+  'sundram balanced advantage': K(118825,'Sundaram Balanced Advantage Fund Regular Plan Growth'),
+  'dsp mid cap':                K(108066,'DSP Mid Cap Fund - Regular Plan - Growth'),
+  'dsp midcap':                 K(108066,'DSP Mid Cap Fund - Regular Plan - Growth'),
+  'franklin india flexi cap':   K(101006,'Franklin India Flexi Cap Fund - Growth'),
+  'franklin india flexicap':    K(101006,'Franklin India Flexi Cap Fund - Growth'),
+  'axis bluechip':              K(120596,'Axis Bluechip Fund - Regular Plan - Growth'),
+  'axis blue chip':             K(120596,'Axis Bluechip Fund - Regular Plan - Growth'),
+  'sbi small cap':              K(116278,'SBI Small Cap Fund - Regular Plan - Growth'),
+  'kotak small cap':            K(120505,'Kotak Small Cap Fund - Regular Plan - Growth'),
+  'motilal oswal midcap':       K(150625,'Motilal Oswal Midcap Fund - Regular Plan - Growth'),
+  'uti nifty 50 index':         K(120716,'UTI Nifty 50 Index Fund - Regular Plan - Growth'),
+  'hdfc index nifty 50':        K(118662,'HDFC Index Fund - Nifty 50 Plan - Growth'),
+  'kotak balanced advantage':   K(119230,'Kotak Balanced Advantage Fund - Regular Plan - Growth'),
+  'dsp multi asset allocation': K(149448,'DSP Multi Asset Allocation Fund - Regular Plan - Growth'),
+  'baroda bnp paribas large cap':K(152130,'Baroda BNP Paribas Large Cap Fund - Regular Plan - Growth option'),
+  'baroda bnp large cap':       K(152130,'Baroda BNP Paribas Large Cap Fund - Regular Plan - Growth option'),
+  'uti gold etf fof':           K(147389,'UTI Gold ETF Fund of Fund - Regular Plan - Growth'),
+  'uti gold etf':               K(147389,'UTI Gold ETF Fund of Fund - Regular Plan - Growth'),
+  'sbi gold fund':              K(121185,'SBI Gold Fund - Regular Plan - Growth'),
+  'bandhan small cap':          K(145552,'Bandhan Small Cap Fund - Regular Plan - Growth'),
+  'hdfc top 100':               K(119533,'HDFC Top 100 Fund - Regular Plan - Growth'),
+  'nippon india small cap':     K(118778,'Nippon India Small Cap Fund - Growth Plan - Growth Option'),
+  'nippon small cap':           K(118778,'Nippon India Small Cap Fund - Growth Plan - Growth Option'),
+  'axis midcap':                K(120503,'Axis Midcap Fund - Regular Plan - Growth'),
+  'axis mid cap':               K(120503,'Axis Midcap Fund - Regular Plan - Growth'),
+  'hdfc mid cap opportunities fund': K(118989,'HDFC Mid-Cap Opportunities Fund - Regular Plan - Growth'),
+};
+
 function generateQueries(name) {
   const queries = [name];
   const fixes = { 'pru ':'prudential ', 'pudential':'prudential', 'advanatge':'advantage', 'advantge':'advantage', 'flexi cap':'flexicap', 'flexicap':'flexi cap', 'mid cap':'midcap', 'midcap':'mid cap', 'large cap':'largecap', 'largecap':'large cap', 'small cap':'smallcap', 'multi cap':'multicap', 'etf fof':'etf fund of fund', 'fof':'fund of fund', 'gold etf':'gold' };
@@ -63,6 +121,13 @@ function generateQueries(name) {
   for (const [a, b] of Object.entries(fixes)) { if (lower.includes(a)) queries.push(lower.replace(a, b)); }
   const words = name.split(/\s+/).filter(w => w.length > 3 && !['fund','plan','option','growth','regular','direct','india'].includes(w.toLowerCase()));
   if (words.length >= 2) queries.push(words.slice(0, 3).join(' '));
+  if (words.length >= 2) queries.push(words.slice(0, 2).join(' ')); // shorter fallback
+  // Also add AMC + category shorthand
+  const lname = name.toLowerCase();
+  if (lname.includes('hdfc') && lname.includes('mid')) queries.push('HDFC Mid-Cap Opportunities Regular Growth');
+  if (lname.includes('hdfc') && lname.includes('flexi')) queries.push('HDFC Flexi Cap Fund Regular Growth');
+  if (lname.includes('lic') && lname.includes('flexi')) queries.push('LIC MF Flexi Cap Fund Regular Growth');
+  if (lname.includes('sundram') || lname.includes('sundaram')) queries.push('Sundaram Balanced Advantage Fund Regular Growth');
   return [...new Set(queries)];
 }
 
@@ -158,17 +223,37 @@ function pickBest(schemes, userInput) {
 }
 
 async function searchFund(name) {
-  for (const q of generateQueries(name)) {
-    try {
-      const r = await httpsGet('api.mfapi.in', `/mf/search?q=${encodeURIComponent(q)}`, 12000);
-      if (r.status !== 200) continue;
-      const schemes = JSON.parse(r.body);
-      if (!schemes.length) continue;
-      const best = pickBest(schemes, name);
-      if (best) { console.log(`  [✓] "${q}" → ${best.schemeName} (${best.schemeCode})`); return best; }
-    } catch(e) { /* try next query */ }
+  // 1. Check hardcoded scheme map first — instant, no network needed
+  const nameKey = name.toLowerCase().trim()
+    .replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim()
+    .replace(/\b(fund|plan|regular|growth|direct|india|option)\b/g, '').trim();
+  const knownEntry = KNOWN_SCHEMES[nameKey] || KNOWN_SCHEMES[name.toLowerCase().trim()];
+  if (knownEntry) {
+    console.log(`  [KNOWN] "${name}" → ${knownEntry.schemeName} (${knownEntry.schemeCode})`);
+    return { ...knownEntry, confidence: 100 };
   }
-  return null;
+
+  // 2. Run all search queries in PARALLEL (not sequential) with shorter timeout
+  const queries = generateQueries(name);
+  const results = await Promise.all(
+    queries.map(q =>
+      httpsGet('api.mfapi.in', `/mf/search?q=${encodeURIComponent(q)}`, 6000)
+        .then(r => {
+          if (r.status !== 200) return null;
+          const schemes = JSON.parse(r.body);
+          if (!schemes.length) return null;
+          const best = pickBest(schemes, name);
+          if (best) console.log(`  [✓] "${q}" → ${best.schemeName} (${best.schemeCode})`);
+          return best;
+        })
+        .catch(() => null)
+    )
+  );
+  // Return first non-null result with highest confidence
+  const valid = results.filter(Boolean);
+  if (!valid.length) return null;
+  valid.sort((a, b) => (b.confidence || 0) - (a.confidence || 0));
+  return valid[0];
 }
 
 // ── NAV MATH ───────────────────────────────────────────────────────────────
@@ -276,7 +361,7 @@ function computeStdDev(navData, months) {
 
 async function fetchFundData(fund) {
   const amt = parseFloat(fund.amt.replace(/[₹,\s]/g,'')) || 0;
-  const scheme = await searchFund(fund.name);
+  const scheme = fund._overrideScheme || await searchFund(fund.name);
   if (!scheme) return { fund, amt, error: 'Not found in AMFI' };
 
 
@@ -293,16 +378,20 @@ async function fetchFundData(fund) {
   const d3y = new Date(today); d3y.setFullYear(today.getFullYear()-3);
   const d5y = new Date(today); d5y.setFullYear(today.getFullYear()-5);
 
-  // Helper: 7-day window around a target date (handles weekends/holidays)
+  // Helper: 30-day window around target date — handles Indian holiday clusters
+  // ±15 days guarantees ≥10 trading days even around Diwali/Holi/Ambedkar/Good Friday
+  // mfapi returns ≤30 records for this window — still fast, never bulk-downloads
   const window7 = d => {
-    const s = new Date(d); s.setDate(s.getDate()-4);
-    const e = new Date(d); e.setDate(e.getDate()+4);
+    const s = new Date(d); s.setDate(s.getDate()-15);
+    const e = new Date(d); e.setDate(e.getDate()+15);
     return `?startDate=${fmtD(s)}&endDate=${fmtD(e)}`;
   };
-  // Calendar year windows — narrow to Jan+Dec only for start/end NAV
+  // Calendar year windows — 15 days at year start/end to handle holiday gaps
+  // Jan 1-15: catches New Year, Republic Day gaps
+  // Dec 17-31: catches Christmas, year-end gaps
   const calWindow = yr => ({
-    s: `?startDate=01-01-${yr}&endDate=10-01-${yr}`,  // first week of year
-    e: `?startDate=22-12-${yr}&endDate=31-12-${yr}`,  // last week of year
+    s: `?startDate=01-01-${yr}&endDate=15-01-${yr}`,   // first 15 days of year
+    e: `?startDate=17-12-${yr}&endDate=31-12-${yr}`,   // last 15 days of year
   });
 
   // TWO-PHASE fetch — avoids mfapi.in rate-limiting from 14 simultaneous requests
@@ -339,6 +428,35 @@ async function fetchFundData(fund) {
   if (!latestNav) return { fund, amt, error: 'Invalid NAV data' };
   const mf = { meta: latestInfo.meta };
 
+  // Validate scheme matches user intent (catch wrong KNOWN_SCHEMES entry)
+  const actualCategory = (latestInfo.meta?.scheme_category || '').toLowerCase();
+  const userLower = fund.name.toLowerCase();
+  const mismatch =
+    (userLower.includes('mid cap') || userLower.includes('midcap')) && actualCategory.includes('large cap') ||
+    (userLower.includes('small cap') || userLower.includes('smallcap')) && actualCategory.includes('large cap') ||
+    (userLower.includes('large cap') || userLower.includes('bluechip')) && actualCategory.includes('small cap');
+  if (mismatch) {
+    console.warn(`  [MISMATCH] "${fund.name}" → ${scheme.schemeName} (${actualCategory}) — category mismatch, retrying search`);
+    // Fall back to live search for this fund
+    const fallback = await (async () => {
+      for (const q of generateQueries(fund.name)) {
+        try {
+          const r = await httpsGet('api.mfapi.in', `/mf/search?q=${encodeURIComponent(q)}`, 6000);
+          if (r.status !== 200) continue;
+          const schemes = JSON.parse(r.body);
+          if (!schemes.length) continue;
+          const best = pickBest(schemes, fund.name);
+          if (best && best.schemeCode !== scheme.schemeCode) return best;
+        } catch {}
+      }
+      return null;
+    })();
+    if (fallback) {
+      console.log(`  [FALLBACK] Using ${fallback.schemeName} (${fallback.schemeCode}) instead`);
+      return fetchFundData({ ...fund, _overrideScheme: fallback });
+    }
+  }
+
   // Extract NAV closest to target date from narrow-window response
   const navFromWindow = (r, targetDate) => {
     if (!r || r.status !== 200) return null;
@@ -358,13 +476,21 @@ async function fetchFundData(fund) {
       return parseFloat(best.nav);
     } catch { return null; }
   };
-  // For calendar: use last record of start-window as year-open, first of end-window as year-close
-  const calNavPair = (rs, re) => {
+  // For calendar: find first trading day of year (open) and last trading day (close)
+  // mfapi returns newest-first, so ds[last] = oldest = first trading day of year
+  //                                de[0] = newest = last trading day of year
+  const calNavPair = (rs, re, yr) => {
     if (!rs || rs.status !== 200 || !re || re.status !== 200) return null;
     try {
       const ds = JSON.parse(rs.body).data; const de = JSON.parse(re.body).data;
       if (!ds?.length || !de?.length) return null;
-      return { open: parseFloat(ds[ds.length-1].nav), close: parseFloat(de[0].nav) };
+      // open = NAV closest to Jan 1 of year (oldest in start-window)
+      // close = NAV closest to Dec 31 of year (newest in end-window)
+      const openNav = parseFloat(ds[ds.length-1].nav);
+      const closeNav = parseFloat(de[0].nav);
+      // Sanity: both NAVs must be positive and close must be for same/next year
+      if (!openNav || !closeNav || openNav <= 0 || closeNav <= 0) return null;
+      return { open: openNav, close: closeNav };
     } catch { return null; }
   };
 
@@ -374,11 +500,11 @@ async function fetchFundData(fund) {
 
   // Build calendar year returns from narrow windows
   const calData = {
-    2021: calNavPair(rCal21s, rCal21e),
-    2022: calNavPair(rCal22s, rCal22e),
-    2023: calNavPair(rCal23s, rCal23e),
-    2024: calNavPair(rCal24s, rCal24e),
-    2025: calNavPair(rCal25s, rCal25e),
+    2021: calNavPair(rCal21s, rCal21e, 2021),
+    2022: calNavPair(rCal22s, rCal22e, 2022),
+    2023: calNavPair(rCal23s, rCal23e, 2023),
+    2024: calNavPair(rCal24s, rCal24e, 2024),
+    2025: calNavPair(rCal25s, rCal25e, 2025),
   };
 
   // Use nav array for invest-date lookup: fetch 13-month history only if needed
@@ -521,7 +647,10 @@ async function fetchFundData(fund) {
     ? (fundStdDev / benchmark.stddev).toFixed(2)
     : null;
 
-  console.log(`  [NAV] ${scheme.schemeName}: 1Y=${pct(ret1y)} 3Y=${pct(ret3y)} 5Y=${pct(ret5y)} BM:${benchmark.name}`);
+  console.log(`  [NAV] ${scheme.schemeName}`);
+  console.log(`    LIVE: NAV=${latestNav} as of ${latestDate}`);
+  console.log(`    CAGR: 1Y=${pct(ret1y)} 3Y=${pct(ret3y)} 5Y=${pct(ret5y)} | BM:${benchmark.name}`);
+  console.log(`    CAL:  2021=${fmtC(cal[2021])} 2022=${fmtC(cal[2022])} 2023=${fmtC(cal[2023])} 2024=${fmtC(cal[2024])} 2025=${fmtC(cal[2025])}`);
   return { fund, amt, scheme, meta: latestInfo.meta, schemeCode: scheme.schemeCode, latestNav, latestDate, navInvest, ret1y, ret3y, ret5y, cal, currentValue, investCAGR, gain, yearsHeld, benchmark, betaEstimate, fundStdDev };
 }
 

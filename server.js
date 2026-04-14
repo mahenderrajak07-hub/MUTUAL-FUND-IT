@@ -119,15 +119,9 @@ function generateQueries(name) {
   const fixes = { 'pru ':'prudential ', 'pudential':'prudential', 'advanatge':'advantage', 'advantge':'advantage', 'flexi cap':'flexicap', 'flexicap':'flexi cap', 'mid cap':'midcap', 'midcap':'mid cap', 'large cap':'largecap', 'largecap':'large cap', 'small cap':'smallcap', 'multi cap':'multicap', 'etf fof':'etf fund of fund', 'fof':'fund of fund', 'gold etf':'gold' };
   let lower = name.toLowerCase();
   for (const [a, b] of Object.entries(fixes)) { if (lower.includes(a)) queries.push(lower.replace(a, b)); }
+  // Only add 3-word slice — never 2-word (too short, matches wrong funds)
   const words = name.split(/\s+/).filter(w => w.length > 3 && !['fund','plan','option','growth','regular','direct','india'].includes(w.toLowerCase()));
-  if (words.length >= 2) queries.push(words.slice(0, 3).join(' '));
-  if (words.length >= 2) queries.push(words.slice(0, 2).join(' ')); // shorter fallback
-  // Also add AMC + category shorthand
-  const lname = name.toLowerCase();
-  if (lname.includes('hdfc') && lname.includes('mid')) queries.push('HDFC Mid-Cap Opportunities Regular Growth');
-  if (lname.includes('hdfc') && lname.includes('flexi')) queries.push('HDFC Flexi Cap Fund Regular Growth');
-  if (lname.includes('lic') && lname.includes('flexi')) queries.push('LIC MF Flexi Cap Fund Regular Growth');
-  if (lname.includes('sundram') || lname.includes('sundaram')) queries.push('Sundaram Balanced Advantage Fund Regular Growth');
+  if (words.length >= 3) queries.push(words.slice(0, 3).join(' ')); // e.g. "HDFC Mid-Cap Opportunities"
   return [...new Set(queries)];
 }
 
@@ -386,16 +380,11 @@ async function fetchFundData(fund) {
     const e = new Date(d); e.setDate(e.getDate()+15);
     return `?startDate=${fmtD(s)}&endDate=${fmtD(e)}`;
   };
-  // Calendar year windows — 15 days at year start/end to handle holiday gaps
-  // Jan 1-15: catches New Year, Republic Day gaps
-  // Dec 17-31: catches Christmas, year-end gaps
-  const calWindow = yr => ({
-    s: `?startDate=01-01-${yr}&endDate=15-01-${yr}`,   // first 15 days of year
-    e: `?startDate=17-12-${yr}&endDate=31-12-${yr}`,   // last 15 days of year
-  });
+  // Calendar data is parsed from rCalAll (single request from 2021 to today)
+  // Year filtering happens in buildCalData below
 
-  // TWO-PHASE fetch — avoids mfapi.in rate-limiting from 14 simultaneous requests
-  // Phase A: CAGR points (critical) — 4 tiny requests in parallel
+  // TWO-PHASE FETCH — reliable without endDate (mfapi.in ignores endDate)
+  // Phase A: CAGR points — 4 parallel narrow-window requests
   const code = scheme.schemeCode;
   const [rLatest, r1y, r3y, r5y] = await Promise.all([
     httpsGet('api.mfapi.in', `/mf/${code}/latest`, 6000),
@@ -404,21 +393,11 @@ async function fetchFundData(fund) {
     httpsGet('api.mfapi.in', `/mf/${code}${window7(d5y)}`, 6000).catch(()=>null),
   ]);
 
-  // Phase B: Calendar windows — batched in 2 groups to stay under rate limit
-  const [rCal21s, rCal21e, rCal22s, rCal22e, rCal23s] = await Promise.all([
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2021).s}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2021).e}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2022).s}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2022).e}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2023).s}`, 5000).catch(()=>null),
-  ]);
-  const [rCal23e, rCal24s, rCal24e, rCal25s, rCal25e] = await Promise.all([
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2023).e}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2024).s}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2024).e}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2025).s}`, 5000).catch(()=>null),
-    httpsGet('api.mfapi.in', `/mf/${code}${calWindow(2025).e}`, 5000).catch(()=>null),
-  ]);
+  // Phase B: Calendar data — ONE request from 2021 to today
+  // mfapi.in does NOT support endDate, so we fetch all data from 2021 onwards
+  // and filter by year in JS. Max ~1500 records for any fund — fast to parse.
+  const rCalAll = await httpsGet('api.mfapi.in', `/mf/${code}?startDate=01-01-2021`, 12000)
+    .catch(()=>null);
 
   if (!rLatest || rLatest.status !== 200) return { fund, amt, error: 'NAV fetch failed' };
 
@@ -476,35 +455,56 @@ async function fetchFundData(fund) {
       return parseFloat(best.nav);
     } catch { return null; }
   };
-  // For calendar: find first trading day of year (open) and last trading day (close)
-  // mfapi returns newest-first, so ds[last] = oldest = first trading day of year
-  //                                de[0] = newest = last trading day of year
-  const calNavPair = (rs, re, yr) => {
-    if (!rs || rs.status !== 200 || !re || re.status !== 200) return null;
-    try {
-      const ds = JSON.parse(rs.body).data; const de = JSON.parse(re.body).data;
-      if (!ds?.length || !de?.length) return null;
-      // open = NAV closest to Jan 1 of year (oldest in start-window)
-      // close = NAV closest to Dec 31 of year (newest in end-window)
-      const openNav = parseFloat(ds[ds.length-1].nav);
-      const closeNav = parseFloat(de[0].nav);
-      // Sanity: both NAVs must be positive and close must be for same/next year
-      if (!openNav || !closeNav || openNav <= 0 || closeNav <= 0) return null;
-      return { open: openNav, close: closeNav };
-    } catch { return null; }
-  };
-
   const nav1yVal = navFromWindow(r1y, d1y);
   const nav3yVal = navFromWindow(r3y, d3y);
   const nav5yVal = navFromWindow(r5y, d5y);
 
-  // Build calendar year returns from narrow windows
+  // Build calendar year returns from rCalAll
+  // mfapi date format: "DD-MM-YYYY" — year is the last 4 chars of the date string
+  // mfapi returns newest-first, so for year Y:
+  //   open  = last record in array where date ends with -Y  (oldest = first trading day)
+  //   close = first record in array where date ends with -Y (newest = last trading day)
+  const buildCalData = (rAll) => {
+    if (!rAll || rAll.status !== 200) return {};
+    let allData;
+    try { allData = JSON.parse(rAll.body).data; } catch { return {}; }
+    if (!allData?.length) return {};
+
+    // Cap to 2000 newest records (avoids slow parse of 30-year history)
+    if (allData.length > 2000) allData = allData.slice(0, 2000);
+
+    // Only process records from 2020 onwards — filter by year to avoid old data contamination
+    // mfapi date format: "DD-MM-YYYY" or "DD-Mon-YYYY"
+    // Year is ALWAYS the last 4 chars regardless of format
+    const VALID_YEARS = new Set(['2020','2021','2022','2023','2024','2025']);
+    const byYear = {};
+    for (const rec of allData) {
+      const yr = rec.date?.slice(-4);
+      if (!yr || !VALID_YEARS.has(yr)) continue; // skip pre-2020 and future
+      if (!byYear[yr]) byYear[yr] = [];
+      byYear[yr].push({ nav: parseFloat(rec.nav), date: rec.date });
+    }
+
+    // allData is newest-first: byYear[yr][0] = last trading day, [last] = first trading day
+    const result = {};
+    for (const [yr, recs] of Object.entries(byYear)) {
+      // Verify dates are actually in the correct year (guards against mfapi returning wrong data)
+      const validRecs = recs.filter(r => r.date?.slice(-4) === yr && r.nav > 0);
+      if (validRecs.length < 2) continue; // need at least 2 records to compute a return
+      const open  = validRecs[validRecs.length - 1].nav; // oldest = year open
+      const close = validRecs[0].nav;                    // newest = year close
+      result[yr] = { open, close };
+    }
+    return result;
+  };
+
+  const calYearData = buildCalData(rCalAll);
   const calData = {
-    2021: calNavPair(rCal21s, rCal21e, 2021),
-    2022: calNavPair(rCal22s, rCal22e, 2022),
-    2023: calNavPair(rCal23s, rCal23e, 2023),
-    2024: calNavPair(rCal24s, rCal24e, 2024),
-    2025: calNavPair(rCal25s, rCal25e, 2025),
+    2021: calYearData['2021'] || null,
+    2022: calYearData['2022'] || null,
+    2023: calYearData['2023'] || null,
+    2024: calYearData['2024'] || null,
+    2025: calYearData['2025'] || null,
   };
 
   // Use nav array for invest-date lookup: fetch 13-month history only if needed
@@ -512,19 +512,26 @@ async function fetchFundData(fund) {
   const investDate = parseD(fund.date);
   let navInvest = null;
   if (investDate) {
-    const invWindow = `?startDate=${fmtD(new Date(investDate.getTime()-15*86400000))}&endDate=${fmtD(new Date(investDate.getTime()+15*86400000))}`;
-    const rInv = await httpsGet('api.mfapi.in', `/mf/${code}${invWindow}`, 6000).catch(()=>null);
+    // Fetch from invest date - 30 days onwards (mfapi ignores endDate)
+    // Filter returned records to find closest NAV to invest date
+    const invStart = new Date(investDate.getTime() - 30*86400000);
+    const rInv = await httpsGet('api.mfapi.in', `/mf/${code}?startDate=${fmtD(invStart)}`, 8000).catch(()=>null);
     if (rInv?.status === 200) {
       try {
         const invData = JSON.parse(rInv.body).data;
         if (invData?.length) {
-          // Find record closest to invest date
+          // Find record with minimum |date - investDate| difference
           let best = invData[0], bestDiff = Infinity;
           for (const d of invData) {
             const pd = parseD(d.date);
-            if (pd) { const diff = Math.abs(pd.getTime()-investDate.getTime()); if (diff<bestDiff){bestDiff=diff;best=d;} }
+            if (!pd) continue;
+            const diff = Math.abs(pd.getTime() - investDate.getTime());
+            if (diff < bestDiff) { bestDiff = diff; best = d; }
+            // Stop searching once we go more than 10 days past invest date
+            if (pd < new Date(investDate.getTime() - 10*86400000)) break;
           }
           navInvest = parseFloat(best.nav);
+          console.log(`    INVEST: NAV=${navInvest} on ${best.date} (target: ${fmtD(investDate)})`);
         }
       } catch {}
     }
@@ -576,9 +583,11 @@ async function fetchFundData(fund) {
   };
 
   // Build cal from narrow-window calData (much more reliable than navAt on big arrays)
-  const isHybridFund = (latestInfo.meta?.scheme_category||'').toLowerCase().match(/balanced|hybrid|multi asset/);
-  const maxCal = isHybridFund ? 40 : 65;
-  const minCal = isHybridFund ? -25 : -45;
+  const catLower = (latestInfo.meta?.scheme_category||'').toLowerCase();
+  const isHybridFund = /balanced|hybrid|multi asset|debt|income/.test(catLower);
+  // Multi asset/hybrid funds: realistic annual max ~35%. Pure equity: max 70%.
+  const maxCal = isHybridFund ? 35 : 70;
+  const minCal = isHybridFund ? -20 : -55;
   const cal = {};
   for (const yr of [2020,2021,2022,2023,2024,2025]) {
     const pair = calData[yr];
@@ -961,21 +970,32 @@ function buildReport(funds, results, knowledge) {
 
 // ── MAIN ANALYSIS ──────────────────────────────────────────────────────────
 async function runAnalysis(funds) {
-  console.log(`\n[Phase 1] Fetching AMFI for ${funds.length} funds in parallel`);
-  const FUND_TIMEOUT = 28000; // 28s — covers 3-phase fetch (6+5+5s) + Claude + buffer
-  const results = await Promise.all(funds.map(async fund => {
+  console.log(`\n[Phase 1] Fetching AMFI for ${funds.length} funds (max 2 at a time to avoid rate limiting)`);
+  const FUND_TIMEOUT = 28000; // 28s — covers 3-phase fetch + invest window + buffer
+
+  const fetchOne = async fund => {
     console.log(`  → ${fund.name}`);
     try {
       return await Promise.race([
         fetchFundData(fund),
         new Promise((_, rej) => setTimeout(() => rej(new Error('Fund fetch timed out')), FUND_TIMEOUT))
       ]);
-    }
-    catch(e) {
+    } catch(e) {
       console.error(`  ✗ ${fund.name}: ${e.message}`);
       return { fund, amt: parseFloat(fund.amt.replace(/[₹,\s]/g,''))||0, error: e.message };
     }
-  }));
+  };
+
+  // Process in batches of 2 — limits peak concurrent mfapi requests to ~30
+  const results = [];
+  for (let i = 0; i < funds.length; i += 2) {
+    const batch = funds.slice(i, i + 2);
+    const batchResults = await Promise.all(batch.map(fetchOne));
+    results.push(...batchResults);
+    if (i + 2 < funds.length) {
+      await new Promise(r => setTimeout(r, 300)); // 300ms pause between batches
+    }
+  }
   const ok = results.filter(r => !r.error).length;
   console.log(`[Phase 1] Done: ${ok}/${funds.length} fetched`);
 

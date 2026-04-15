@@ -159,6 +159,19 @@ const KNOWN_SCHEMES = {
   'baroda bnp equity savings':            K(130267,'Baroda BNP Paribas Equity Savings Fund - Regular Plan - Growth'),
   'icici prudential equity savings':      K(120238,'ICICI Prudential Equity Savings Fund - Regular Plan - Growth'),
   'icici pru equity savings':             K(120238,'ICICI Prudential Equity Savings Fund - Regular Plan - Growth'),
+  // Common timed-out funds
+  'axis banking psu debt':                K(143338,'Axis Banking & PSU Debt Fund - Regular Plan - Growth'),
+  'axis banking psu':                     K(143338,'Axis Banking & PSU Debt Fund - Regular Plan - Growth'),
+  'axis banking and psu':                 K(143338,'Axis Banking & PSU Debt Fund - Regular Plan - Growth'),
+  'icici prudential banking and psu debt':K(104486,'ICICI Prudential Banking & PSU Debt Fund - Regular Plan - Cumulative'),
+  'icici prudential banking psu':         K(104486,'ICICI Prudential Banking & PSU Debt Fund - Regular Plan - Cumulative'),
+  'icici pru banking psu':                K(104486,'ICICI Prudential Banking & PSU Debt Fund - Regular Plan - Cumulative'),
+  'mirae asset balanced advantage':       K(140364,'Mirae Asset Balanced Advantage Fund - Regular Plan - Growth'),
+  'mirae asset balanced advanatage':      K(140364,'Mirae Asset Balanced Advantage Fund - Regular Plan - Growth'),
+  'mirae asset bal adv':                  K(140364,'Mirae Asset Balanced Advantage Fund - Regular Plan - Growth'),
+  'mirae balanced advantage':             K(140364,'Mirae Asset Balanced Advantage Fund - Regular Plan - Growth'),
+  'baroda bnp paribas gilt':              K(113016,'Baroda BNP Paribas Gilt Fund - Regular Plan - Growth'),
+  'baroda bnp gilt':                      K(113016,'Baroda BNP Paribas Gilt Fund - Regular Plan - Growth'),
 };
 
 function generateQueries(name) {
@@ -1202,7 +1215,28 @@ function buildReport(funds, results, knowledge) {
         calendarReturns: bmCalReturns
       };
     })(),
-    risk:{blendedBeta:'0.99',bfsiPct:(sectors.find(s=>s.name==='BFSI')?.pct||38)+'%',top5StocksPct:'24%',midSmallPct:funds.length>3?'<5%':'10%',uniqueStocks:`~${uniqueStocks}`,stddev:'14.2%',maxDrawdown:'~-33%',downsideCap:'~93%',upsideCap:'~96%',stressScenarios:stress},
+    risk:(()=>{
+      // Compute blended beta and stddev from resolved funds
+      const resolvedWithBeta = fundsArr.filter(f => f.beta && f.beta !== 'N/A');
+      const avgBeta = resolvedWithBeta.length
+        ? (resolvedWithBeta.reduce((s,f) => s + parseFloat(f.beta), 0) / resolvedWithBeta.length).toFixed(2)
+        : 'N/A';
+      const resolvedWithStd = fundsArr.filter(f => f.stddev && f.stddev !== 'N/A');
+      const avgStdDev = resolvedWithStd.length
+        ? (resolvedWithStd.reduce((s,f) => s + parseFloat(f.stddev), 0) / resolvedWithStd.length).toFixed(1) + '%'
+        : 'N/A';
+      // Detect portfolio type for context-aware defaults
+      const cats = results.filter(r=>r.meta?.scheme_category).map(r=>(r.meta.scheme_category||'').toLowerCase());
+      const debtCount = cats.filter(c => /overnight|liquid|money|duration|bond|gilt|credit|banking.*psu|floating|debt|income/.test(c)).length;
+      const hybridCount = cats.filter(c => /balanced|hybrid|multi asset|equity savings/.test(c)).length;
+      const isDebtHeavy = debtCount > cats.length / 2;
+      const isHybridHeavy = hybridCount > cats.length / 2;
+      const maxDD = isDebtHeavy ? '~-5%' : isHybridHeavy ? '~-18%' : '~-33%';
+      const dsCap = isDebtHeavy ? '~30%' : isHybridHeavy ? '~85%' : '~93%';
+      const usCap = isDebtHeavy ? '~40%' : isHybridHeavy ? '~90%' : '~96%';
+      const bfsiPct = (sectors.find(s=>s.name==='BFSI')?.pct || (isDebtHeavy ? 15 : 38));
+      return {blendedBeta:avgBeta,bfsiPct:bfsiPct+'%',top5StocksPct:isDebtHeavy?'N/A':'24%',midSmallPct:isDebtHeavy?'N/A':(funds.length>3?'<5%':'10%'),uniqueStocks:isDebtHeavy?'N/A (debt)':`~${uniqueStocks}`,stddev:avgStdDev,maxDrawdown:maxDD,downsideCap:dsCap,upsideCap:usCap,stressScenarios:stress};
+    })(),
     sectors,
     overlap:{overallPct:overlapPct,verdict:knowledge?.overlap?.verdict||(funds.length>4?'Critical redundancy — multiple funds, one strategy':'Moderate overlap — consolidate'),topStocks},
     projections:{corpus:fmt(corpus),rows:[{label:'Current portfolio',cagr:blendedCAGR5.toFixed(1)+'%',y5:project(blendedCAGR5,5),y10:project(blendedCAGR5,10),y15:project(blendedCAGR5,15),y20:project(blendedCAGR5,20),type:'bad'},{label:portfolioBM?.name||'Benchmark Index',cagr:weightedBMcagr.toFixed(1)+'%',y5:project(weightedBMcagr,5),y10:project(weightedBMcagr,10),y15:project(weightedBMcagr,15),y20:project(weightedBMcagr,20),type:'mid'},{label:'Recommended portfolio',cagr:recCAGR+'%',y5:project(recCAGR,5),y10:project(recCAGR,10),y15:project(recCAGR,15),y20:project(recCAGR,20),type:'good'}],gap20y:(()=>{

@@ -463,35 +463,49 @@ function buildDashboard(d,funds){
   ${(S.keyFlags||[]).map((f,i)=>`<div style="display:flex;gap:8px"><span style="font-weight:500;flex-shrink:0">${i+1}.</span><span>${f}</span></div>`).join('')}
   </div></div></div>`;
 
-  h+=`<div style="margin-bottom:1.25rem"><div class="d-sec-hd">Fund deep dive — performance & risk</div>
-  <div class="d-card" style="padding:0;overflow:hidden;overflow-x:auto"><table class="d-tbl"><thead><tr>
-    <th style="width:14%;min-width:120px">Fund</th>
+  h+=`<div style="margin-bottom:1.25rem"><div class="d-sec-hd">Fund deep dive — returns & risk metrics</div>
+  <div class="d-card" style="padding:0;overflow:hidden"><table class="d-tbl"><thead><tr>
+    <th style="min-width:130px">Fund</th>
     <th class="d-nr">5Y CAGR</th><th class="d-nr">3Y CAGR</th><th class="d-nr">1Y</th>
-    <th class="d-nr">Sharpe</th><th class="d-nr">Beta</th><th class="d-nr">StdDev</th><th class="d-nr">Alpha</th>
-    <th class="d-nr">TER</th><th class="d-nc">Risk</th>
-    <th class="d-nc">Tenure</th><th class="d-nc">Quality</th><th class="d-nc">Decision</th>
+    <th class="d-nr">Sharpe</th><th class="d-nr">Beta</th><th class="d-nr">StdDev</th><th class="d-nr">Alpha vs BM</th>
   </tr></thead><tbody>
-  ${F.map(f=>{const shortRisk=(f.riskCategory||'—').replace('Moderately ','Mod. ').replace(' Risk','');return `<tr>
-    <td style="max-width:140px"><div class="d-fn" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${f.name}">${f.name}</div><div class="d-fs" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.manager||'See factsheet'}</div></td>
+  ${F.map(f=>`<tr>
+    <td><div class="d-fn" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px" title="${f.name}">${f.name}</div><div class="d-fs" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${f.manager||'See factsheet'}</div></td>
     <td class="d-nr ${f.perf5yVal>13?'d-g':f.perf5yVal>11?'d-o':'d-r'}">${f.cagr5y}</td>
     <td class="d-nr ${f.perf3yVal>13?'d-g':f.perf3yVal>11?'d-o':'d-r'}">${f.cagr3y}</td>
     <td class="d-nr ${f.ret1yVal>0?'d-g':'d-r'}">${f.ret1y}</td>
     <td class="d-nr ${f.sharpeVal>0.8?'d-g':f.sharpeVal>0.5?'d-o':'d-r'}">${f.sharpe||'N/A'}</td>
     <td class="d-nr">${f.beta||'N/A'}</td><td class="d-nr">${f.stddev||'N/A'}</td>
-    <td class="d-nr" style="white-space:nowrap">${f.alpha}</td><td class="d-nr">${f.ter||'N/A'}</td><td class="d-nc"><span class="d-tag d-tb" style="white-space:nowrap;font-size:9px">${shortRisk}</span></td>
-    <td class="d-nc"><span class="d-tag ${f.tenureFlag?'d-to':'d-tb'}">${f.tenureYrs}yr${f.tenureFlag?' ⚠':''}</span></td>
-    <td class="d-nc"><span class="d-vd ${qualColor(f.quality)}">${f.quality}</span></td>
-    <td class="d-nc"><span class="d-vd ${decColor(f.decision)}">${f.decision==='Switch'?'⇄ Switch':f.decision==='Exit'?'✗ Exit':'✔ Hold'}</span></td>
-  </tr>`;}).join('')}
+    <td class="d-nr" style="white-space:nowrap">${f.alpha}</td>
+  </tr>`).join('')}
   ${(d.benchmarkRows&&d.benchmarkRows.length?d.benchmarkRows:[B]).map(bm=>`<tr style="background:rgba(255,248,235,0.6)">
-    <td style="color:var(--muted);font-size:10px;white-space:nowrap">${bm.name||'Nifty 100 TRI'}</td>
+    <td style="color:var(--muted);font-size:10px;white-space:nowrap">${bm.name||'Benchmark'}</td>
     <td class="d-nr d-b">${typeof bm.cagr5y==='number'?bm.cagr5y.toFixed(1)+'%':bm.cagr5y||B.cagr5y}</td>
     <td class="d-nr d-b">${typeof bm.cagr3y==='number'?bm.cagr3y.toFixed(1)+'%':bm.cagr3y||B.cagr3y}</td>
     <td class="d-nr d-b">${typeof bm.ret1y==='number'?(bm.ret1y>=0?'+':'')+bm.ret1y.toFixed(1)+'%':bm.ret1y||B.ret1y}</td>
     <td class="d-nr d-b">${typeof bm.sharpe==='number'?bm.sharpe.toFixed(2):bm.sharpe||B.sharpe}</td>
     <td class="d-nr d-b">1.00</td>
     <td class="d-nr d-b">${typeof bm.stddev==='number'?bm.stddev.toFixed(1)+'%':bm.stddev||B.stddev}</td>
-    <td class="d-nr d-b">—</td><td class="d-nr d-b">0.10%</td><td class="d-nc">—</td>
+    <td class="d-nr d-b">—</td>
+  </tr>`).join('')}</tbody></table></div></div>`;
+
+  h+=`<div style="margin-bottom:1.25rem"><div class="d-sec-hd">Fund assessment — cost, risk & verdict</div>
+  <div class="d-card" style="padding:0;overflow:hidden"><table class="d-tbl"><thead><tr>
+    <th style="min-width:130px">Fund</th>
+    <th class="d-nr">TER</th><th class="d-nc">SEBI Risk</th><th class="d-nc">Tenure</th>
+    <th class="d-nc">Quality</th><th class="d-nc">Decision</th>
+  </tr></thead><tbody>
+  ${F.map(f=>{const shortRisk=(f.riskCategory||'—').replace('Moderately ','Mod. ');return `<tr>
+    <td><div class="d-fn">${f.name.split(' ').slice(0,4).join(' ')}</div></td>
+    <td class="d-nr">${f.ter||'N/A'}</td>
+    <td class="d-nc"><span class="d-tag d-tb" style="white-space:nowrap">${shortRisk}</span></td>
+    <td class="d-nc"><span class="d-tag ${f.tenureFlag?'d-to':'d-tb'}">${f.tenureYrs}yr${f.tenureFlag?' ⚠':''}</span></td>
+    <td class="d-nc"><span class="d-vd ${qualColor(f.quality)}">${f.quality}</span></td>
+    <td class="d-nc"><span class="d-vd ${decColor(f.decision)}">${f.decision==='Switch'?'⇄ Switch':f.decision==='Exit'?'✗ Exit':'✔ Hold'}</span></td>
+  </tr>`;}).join('')}
+  ${(d.benchmarkRows&&d.benchmarkRows.length?d.benchmarkRows:[B]).map(bm=>`<tr style="background:rgba(255,248,235,0.6)">
+    <td style="color:var(--muted);font-size:10px">${bm.name||'Benchmark'}</td>
+    <td class="d-nr d-b">0.10%</td><td class="d-nc">—</td>
     <td colspan="3" class="d-nc" style="color:var(--muted)">Benchmark</td>
   </tr>`).join('')}</tbody></table></div></div>`;
 
@@ -566,8 +580,8 @@ function buildDashboard(d,funds){
       <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span>${f.name.split(' ').slice(0,2).join(' ')}</span><span class="d-o">${f.realReturn}</span></div>
       <div class="d-bb"><div class="d-bf" style="width:${barWidth(parseFloat(f.realReturn)||0,10)};background:#854F0B"></div></div>
     </div>`).join('')}
-    <div style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--muted)">${B.name} (1Y)</span><span class="d-b">${((B.ret1y||0)-6.2).toFixed(1)+'%'}</span></div>
-    <div class="d-bb"><div class="d-bf" style="width:${barWidth(((B.ret1y||0)-6.2),10)};background:#1B4F72"></div></div></div>
+    <div style="margin-top:8px"><div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px"><span style="color:var(--muted)">${B.name} (1Y)</span><span class="d-b">${((parseFloat(B.ret1y)||0)-6.2).toFixed(1)+'%'}</span></div>
+    <div class="d-bb"><div class="d-bf" style="width:${barWidth(((parseFloat(B.ret1y)||0)-6.2),10)};background:#1B4F72"></div></div></div>
     </div>
   </div></div>`;
 

@@ -81,36 +81,36 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 2rem
 .spinner{width:26px;height:26px;border:2.5px solid rgba(192,138,42,0.15);border-top-color:var(--gold);border-radius:50%;animation:spin 0.85s linear infinite;flex-shrink:0}
 @keyframes spin{to{transform:rotate(360deg)}}
 #report-section{background:#fdf8f0;padding:2.5rem 0}
-.report-topbar{max-width:860px;margin:0 auto 1.5rem;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
+.report-topbar{max-width:1120px;margin:0 auto 1.5rem;padding:0 1.5rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem}
 .report-topbar-left{font-size:20px;font-weight:700;color:var(--ink)}
 .report-actions{display:flex;gap:10px}
 .action-btn{font-size:12px;font-weight:600;padding:8px 18px;border-radius:8px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .18s;border:1px solid rgba(26,18,6,0.1);background:rgba(255,251,245,0.8);color:var(--muted)}
 .action-btn:hover{border-color:rgba(26,18,6,0.2);background:#fff;color:var(--ink)}
 .action-btn.primary{background:linear-gradient(135deg,var(--gold-dark),var(--gold));color:#fff;border:none;font-weight:700;box-shadow:0 2px 12px rgba(192,138,42,0.25)}
 .action-btn.primary:hover{box-shadow:0 4px 18px rgba(192,138,42,0.4)}
-#dashboard-output{max-width:860px;margin:0 auto;padding:0 1.5rem}
+#dashboard-output{max-width:1120px;margin:0 auto;padding:0 1.5rem}
 .d-card{background:rgba(255,255,255,0.88);border:0.5px solid rgba(192,138,42,0.12);border-radius:12px;padding:1.25rem;backdrop-filter:blur(8px)}
 .d-mc{display:flex;flex-direction:column;gap:2px}
 .d-ml{font-size:11px;color:var(--gold-dark);font-weight:600;letter-spacing:.06em;text-transform:uppercase;opacity:0.8}
 .d-mv{font-size:22px;font-weight:800;color:var(--ink)}
 .d-ms{font-size:11px;color:var(--muted)}
 .d-g{color:#1d6b3a!important}.d-r{color:#b02a20!important}.d-o{color:var(--gold)!important}.d-b{color:var(--blue)!important}
-.d-tbl{width:100%;border-collapse:collapse;font-size:13px}
-.d-tbl th{font-size:10px;font-weight:600;color:var(--gold-dark);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(192,138,42,0.12);padding:7px 8px;white-space:nowrap;opacity:0.85}
-.d-tbl td{padding:10px 8px;border-bottom:0.5px solid rgba(192,138,42,0.07);vertical-align:middle;color:var(--ink)}
+.d-tbl{width:100%;border-collapse:collapse;font-size:12px}
+.d-tbl th{font-size:9px;font-weight:600;color:var(--gold-dark);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid rgba(192,138,42,0.12);padding:6px 5px;white-space:nowrap;opacity:0.85}
+.d-tbl td{padding:8px 5px;border-bottom:0.5px solid rgba(192,138,42,0.07);vertical-align:middle;color:var(--ink)}
 .d-tbl tbody tr:hover{background:rgba(192,138,42,0.03)}
 .d-nr{text-align:right}.d-nc{text-align:center}
-.d-hl-g{color:#1d6b3a;background:rgba(29,107,58,0.1);border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;display:inline-block}
-.d-hl-r{color:#b02a20;background:rgba(176,42,32,0.08);border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;display:inline-block}
-.d-hl-b{color:var(--blue);background:var(--blue-bg);border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;display:inline-block}
-.d-hl-a{color:var(--gold-dark);background:var(--amber-bg);border-radius:4px;padding:2px 6px;font-size:11px;font-weight:600;display:inline-block}
+.d-hl-g{color:#1d6b3a;background:rgba(29,107,58,0.1);border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;display:inline-block}
+.d-hl-r{color:#b02a20;background:rgba(176,42,32,0.08);border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;display:inline-block}
+.d-hl-b{color:var(--blue);background:var(--blue-bg);border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;display:inline-block}
+.d-hl-a{color:var(--gold-dark);background:var(--amber-bg);border-radius:4px;padding:1px 5px;font-size:10px;font-weight:600;display:inline-block}
 .d-tag{font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;display:inline-block}
 .d-tg{background:rgba(29,107,58,0.1);color:#1d6b3a}.d-tr{background:rgba(176,42,32,0.08);color:#b02a20}
 .d-to{background:var(--amber-bg);color:var(--gold-dark)}.d-tb{background:var(--blue-bg);color:var(--blue)}.d-tgy{background:rgba(26,18,6,0.06);color:var(--muted)}
 .d-vd{font-size:11px;font-weight:600;padding:4px 10px;border-radius:5px;display:inline-block}
 .d-g2{display:grid;grid-template-columns:1fr 1fr;gap:1rem}.d-g3{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem}.d-g4{display:grid;grid-template-columns:repeat(4,1fr);gap:.75rem}
 .d-sec{margin-bottom:2rem}.d-sh,.d-sec-hd{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gold-dark);margin-bottom:.75rem;opacity:0.85}
-.d-fn{font-weight:600;font-size:13px;color:var(--ink);line-height:1.2}.d-fm{font-size:11px;color:var(--muted);margin-top:2px}
+.d-fn{font-weight:600;font-size:11px;color:var(--ink);line-height:1.2}.d-fm{font-size:10px;color:var(--muted);margin-top:2px}
 .d-pill{display:inline-flex;align-items:center;padding:4px 10px;border-radius:5px;font-size:11px;font-weight:600;gap:4px}
 .d-pill-ok{background:rgba(29,107,58,0.1);color:#1d6b3a}.d-pill-bad{background:rgba(176,42,32,0.08);color:#b02a20}.d-pill-warn{background:var(--amber-bg);color:var(--gold-dark)}
 .d-callout{border-radius:8px;padding:10px 14px;font-size:12px;line-height:1.5}
@@ -282,11 +282,7 @@ input[type=text]{font-family:'Inter',sans-serif}
 
 <div class="toast" id="toast"></div>
 
-<footer>
-  FundAudit is powered by Claude AI. Analysis is for research and educational purposes only — not investment advice.<br>
-  Always consult a SEBI-registered investment advisor before making portfolio changes.<br><br>
-  Data: AMFI · Value Research · Tickertape · April 2026
-</footer>
+
 
 <script>
 const EX={
@@ -298,7 +294,7 @@ const EX={
 
 function addRow(){const rows=document.getElementById('fund-rows');const d=document.createElement('div');d.className='fund-row';d.innerHTML=`<div class="ic-input-wrap"><svg class="ic-input-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="10" rx="2" stroke="currentColor" stroke-width="1.1"/><path d="M4 6h6M4 9h4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg><input type="text" placeholder="e.g. Nippon India Large Cap" class="fund-name ic-inp"/></div><div class="ic-input-wrap"><span class="ic-input-prefix">₹</span><input type="text" placeholder="5,00,000" class="fund-amt ic-inp ic-inp-amt"/></div><div class="ic-input-wrap"><svg class="ic-input-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.1"/><path d="M1 6h12M4 1v2M10 1v2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg><input type="text" placeholder="01-Apr-2020" class="fund-date ic-inp ic-inp-date"/></div><button class="remove-btn" onclick="removeRow(this)"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>`;rows.appendChild(d);d.querySelector('input').focus();}
 function removeRow(btn){const rows=document.getElementById('fund-rows');if(rows.children.length>1)btn.closest('.fund-row').remove();}
-function loadEx(k){const d=EX[k];const rows=document.getElementById('fund-rows');rows.innerHTML='';d.forEach(f=>{const div=document.createElement('div');div.className='fund-row';div.innerHTML=`<input type="text" value="${f.name}" class="fund-name"/><input type="text" value="${f.amt}" class="fund-amt"/><input type="text" value="${f.date}" class="fund-date"/><button class="remove-btn" onclick="removeRow(this)">×</button>`;rows.appendChild(div);});}
+function loadEx(k){const d=EX[k];const rows=document.getElementById('fund-rows');rows.innerHTML='';d.forEach(f=>{const div=document.createElement('div');div.className='fund-row';div.innerHTML=`<div class="ic-input-wrap"><svg class="ic-input-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="10" rx="2" stroke="currentColor" stroke-width="1.1"/><path d="M4 6h6M4 9h4" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg><input type="text" value="${f.name}" class="fund-name ic-inp"/></div><div class="ic-input-wrap"><span class="ic-input-prefix">₹</span><input type="text" value="${f.amt}" class="fund-amt ic-inp ic-inp-amt"/></div><div class="ic-input-wrap"><svg class="ic-input-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="2" width="12" height="11" rx="2" stroke="currentColor" stroke-width="1.1"/><path d="M1 6h12M4 1v2M10 1v2" stroke="currentColor" stroke-width="1.1" stroke-linecap="round"/></svg><input type="text" value="${f.date}" class="fund-date ic-inp ic-inp-date"/></div><button class="remove-btn" onclick="removeRow(this)"><svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 2l10 10M12 2L2 12" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>`;rows.appendChild(div);});}
 function getFunds(){return Array.from(document.querySelectorAll('.fund-row')).map(r=>({name:r.querySelector('.fund-name').value.trim(),amt:r.querySelector('.fund-amt').value.trim(),date:r.querySelector('.fund-date').value.trim()})).filter(f=>f.name&&f.amt);}
 function showToast(m,dur=3500){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),dur);}
 
@@ -469,24 +465,24 @@ function buildDashboard(d,funds){
 
   h+=`<div style="margin-bottom:1.25rem"><div class="d-sec-hd">Fund deep dive — performance & risk</div>
   <div class="d-card" style="padding:0;overflow:hidden;overflow-x:auto"><table class="d-tbl"><thead><tr>
-    <th style="width:20%">Fund</th>
+    <th style="width:14%;min-width:120px">Fund</th>
     <th class="d-nr">5Y CAGR</th><th class="d-nr">3Y CAGR</th><th class="d-nr">1Y</th>
     <th class="d-nr">Sharpe</th><th class="d-nr">Beta</th><th class="d-nr">StdDev</th><th class="d-nr">Alpha</th>
     <th class="d-nr">TER</th><th class="d-nc">Risk</th>
     <th class="d-nc">Tenure</th><th class="d-nc">Quality</th><th class="d-nc">Decision</th>
   </tr></thead><tbody>
-  ${F.map(f=>`<tr>
-    <td><div class="d-fn">${f.name}</div><div class="d-fs">${f.manager||'See factsheet'}</div></td>
+  ${F.map(f=>{const shortRisk=(f.riskCategory||'—').replace('Moderately ','Mod. ').replace(' Risk','');return `<tr>
+    <td style="max-width:140px"><div class="d-fn" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${f.name}">${f.name}</div><div class="d-fs" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${f.manager||'See factsheet'}</div></td>
     <td class="d-nr ${f.perf5yVal>13?'d-g':f.perf5yVal>11?'d-o':'d-r'}">${f.cagr5y}</td>
     <td class="d-nr ${f.perf3yVal>13?'d-g':f.perf3yVal>11?'d-o':'d-r'}">${f.cagr3y}</td>
     <td class="d-nr ${f.ret1yVal>0?'d-g':'d-r'}">${f.ret1y}</td>
     <td class="d-nr ${f.sharpeVal>0.8?'d-g':f.sharpeVal>0.5?'d-o':'d-r'}">${f.sharpe||'N/A'}</td>
     <td class="d-nr">${f.beta||'N/A'}</td><td class="d-nr">${f.stddev||'N/A'}</td>
-    <td class="d-nr">${f.alpha}</td><td class="d-nr">${f.ter||'N/A'}</td><td class="d-nc"><span class="d-tag d-tb">${f.riskCategory||'—'}</span></td>
+    <td class="d-nr" style="white-space:nowrap">${f.alpha}</td><td class="d-nr">${f.ter||'N/A'}</td><td class="d-nc"><span class="d-tag d-tb" style="white-space:nowrap;font-size:9px">${shortRisk}</span></td>
     <td class="d-nc"><span class="d-tag ${f.tenureFlag?'d-to':'d-tb'}">${f.tenureYrs}yr${f.tenureFlag?' ⚠':''}</span></td>
     <td class="d-nc"><span class="d-vd ${qualColor(f.quality)}">${f.quality}</span></td>
     <td class="d-nc"><span class="d-vd ${decColor(f.decision)}">${f.decision==='Switch'?'⇄ Switch':f.decision==='Exit'?'✗ Exit':'✔ Hold'}</span></td>
-  </tr>`).join('')}
+  </tr>`;}).join('')}
   ${(d.benchmarkRows&&d.benchmarkRows.length?d.benchmarkRows:[B]).map(bm=>`<tr style="background:rgba(255,248,235,0.6)">
     <td style="color:var(--muted);font-size:10px;white-space:nowrap">${bm.name||'Nifty 100 TRI'}</td>
     <td class="d-nr d-b">${typeof bm.cagr5y==='number'?bm.cagr5y.toFixed(1)+'%':bm.cagr5y||B.cagr5y}</td>
@@ -514,7 +510,7 @@ function buildDashboard(d,funds){
   </tr>`).join('')}</tbody></table></div>
   <div style="font-size:10px;color:var(--muted);margin-top:4px">*2020 partial year · <span class="d-hl-g">Beat BM</span> <span class="d-hl-a">Near BM</span> <span class="d-hl-r">Lagged BM</span></div></div>`;
 
-  h+=`<div style="margin-bottom:1.25rem"><div class="d-sec-hd">Rolling returns — consistency</div><div class="d-g2">
+  h+=`<div style="margin-bottom:1.25rem"><div class="d-sec-hd">Rolling returns — consistency</div><div class="d-g3">
     <div class="d-card"><div style="font-size:12px;font-weight:500;margin-bottom:8px">1-year rolling</div>
     <table class="d-tbl"><thead><tr><th>Fund</th><th class="d-nr">Avg</th><th class="d-nr">% beats BM</th><th class="d-nr">Worst</th></tr></thead><tbody>
     ${F.map(f=>`<tr><td style="font-weight:500">${f.name.split(' ').slice(0,2).join(' ')}</td><td class="d-nr d-o">${f.rolling1yAvg}</td><td class="d-nr ${parseInt(f.rolling1yBeatPct)>50?'d-o':'d-r'}">${f.rolling1yBeatPct}</td><td class="d-nr d-r">${f.rolling1yWorst}</td></tr>`).join('')}
@@ -524,6 +520,11 @@ function buildDashboard(d,funds){
     <table class="d-tbl"><thead><tr><th>Fund</th><th class="d-nr">Avg</th><th class="d-nr">% beats BM</th><th class="d-nr">Min</th></tr></thead><tbody>
     ${F.map(f=>`<tr><td style="font-weight:500">${f.name.split(' ').slice(0,2).join(' ')}</td><td class="d-nr d-o">${f.rolling3yAvg}</td><td class="d-nr ${parseInt(f.rolling3yBeatPct)>50?'d-o':'d-r'}">${f.rolling3yBeatPct}</td><td class="d-nr ${parseFloat(f.rolling3yMin)>8?'d-o':'d-r'}">${f.rolling3yMin}</td></tr>`).join('')}
     <tr style="background:var(--paper)"><td style="color:var(--muted);font-size:10px;white-space:nowrap">${B.name}</td><td class="d-nr d-b">${B.rolling3yAvg}</td><td class="d-nr">—</td><td class="d-nr">—</td></tr>
+    </tbody></table></div>
+    <div class="d-card"><div style="font-size:12px;font-weight:500;margin-bottom:8px">5-year rolling</div>
+    <table class="d-tbl"><thead><tr><th>Fund</th><th class="d-nr">Avg</th><th class="d-nr">% beats BM</th><th class="d-nr">Min</th></tr></thead><tbody>
+    ${F.map(f=>`<tr><td style="font-weight:500">${f.name.split(' ').slice(0,2).join(' ')}</td><td class="d-nr d-o">${f.rolling5yAvg||'N/A'}</td><td class="d-nr ${parseInt(f.rolling5yBeatPct)>50?'d-o':'d-r'}">${f.rolling5yBeatPct||'N/A'}</td><td class="d-nr ${parseFloat(f.rolling5yMin)>8?'d-o':'d-r'}">${f.rolling5yMin||'N/A'}</td></tr>`).join('')}
+    <tr style="background:var(--paper)"><td style="color:var(--muted);font-size:10px;white-space:nowrap">${B.name}</td><td class="d-nr d-b">${B.rolling5yAvg||B.cagr5y}</td><td class="d-nr">—</td><td class="d-nr">—</td></tr>
     </tbody></table></div>
   </div></div>`;
 
@@ -643,7 +644,7 @@ function downloadReport(){
   // Embed real colour values so the report works as a standalone file without CSS variables
   const standaloneCss=`
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:'DM Sans',sans-serif;background:#F7F5F0;color:#0D0D0D;font-size:14px;line-height:1.6;padding:2rem;max-width:960px;margin:0 auto}
+    body{font-family:'DM Sans',sans-serif;background:#F7F5F0;color:#0D0D0D;font-size:14px;line-height:1.6;padding:2rem;max-width:1120px;margin:0 auto}
     .dash{font-family:'DM Sans',sans-serif}
     .d-sep{height:1px;background:#DDD8CF;margin:1.25rem 0}
     .d-sec-hd{font-size:10px;font-weight:500;color:#6B6560;text-transform:uppercase;letter-spacing:.07em;margin-bottom:.75rem;padding-bottom:.35rem;border-bottom:1px solid #DDD8CF}
@@ -656,7 +657,7 @@ function downloadReport(){
     .d-ml{font-size:10px;color:#6B6560;margin-bottom:2px}
     .d-mv{font-size:20px;font-weight:500;color:#0D0D0D}
     .d-ms{font-size:10px;color:#6B6560;margin-top:2px}
-    .d-fn{font-weight:500;font-size:12px;color:#0D0D0D}.d-fs{font-size:10px;color:#6B6560}
+    .d-fn{font-weight:500;font-size:11px;color:#0D0D0D}.d-fs{font-size:10px;color:#6B6560}
     .d-g{color:#2D6A4F;font-weight:500}.d-r{color:#9B2226;font-weight:500}.d-o{color:#7B5E00;font-weight:500}.d-b{color:#1B4F72;font-weight:500}
     .d-tag{display:inline-block;font-size:10px;font-weight:500;padding:2px 6px;border-radius:3px}
     .d-tg{background:#D8F3DC;color:#2D6A4F}.d-tr{background:#FFDDD2;color:#9B2226}.d-to{background:#FFF3CD;color:#7B5E00}.d-tb{background:#D6EAF8;color:#1B4F72}.d-tgy{background:#EDE9E0;color:#6B6560}
@@ -668,8 +669,8 @@ function downloadReport(){
     .d-callout{padding:8px 12px;border-radius:8px;font-size:11px;line-height:1.6;margin-top:8px}
     .d-c-warn{background:#FFDDD2;color:#7F1D1D}.d-c-ok{background:#D8F3DC;color:#14532D}.d-c-info{background:#D6EAF8;color:#1E3A5F}.d-c-amb{background:#FFF3CD;color:#451A03}
     .d-tbl{width:100%;border-collapse:collapse;font-size:11px}
-    .d-tbl th{text-align:left;padding:6px 8px;background:#F7F5F0;color:#6B6560;font-weight:500;font-size:10px;border-bottom:1px solid #DDD8CF}
-    .d-tbl td{padding:6px 8px;border-bottom:1px solid #DDD8CF;color:#0D0D0D;vertical-align:middle}
+    .d-tbl th{text-align:left;padding:5px 5px;background:#F7F5F0;color:#6B6560;font-weight:500;font-size:9px;border-bottom:1px solid #DDD8CF}
+    .d-tbl td{padding:5px 5px;border-bottom:1px solid #DDD8CF;color:#0D0D0D;vertical-align:middle}
     .d-tbl tr:last-child td{border-bottom:none}
     .d-nr{text-align:right;font-variant-numeric:tabular-nums}.d-nc{text-align:center}
     .d-hl-g{background:#BBDEFB;color:#1A237E;border-radius:3px;padding:2px 5px;font-size:10px;font-weight:500}

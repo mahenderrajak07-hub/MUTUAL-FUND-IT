@@ -123,11 +123,47 @@ const KNOWN_SCHEMES = {
   'axis midcap':                K(120503,'Axis Midcap Fund - Regular Plan - Growth'),
   'axis mid cap':               K(120503,'Axis Midcap Fund - Regular Plan - Growth'),
   'hdfc mid cap opportunities fund': K(118989,'HDFC Mid-Cap Opportunities Fund - Regular Plan - Growth'),
+
+  // ── Debt funds (common Regular Growth schemes) ────────────────────────
+  'baroda bnp paribas short duration':    K(113036,'Baroda BNP Paribas Short Duration Fund - Regular Plan - Growth Option'),
+  'baroda bnp short duration':            K(113036,'Baroda BNP Paribas Short Duration Fund - Regular Plan - Growth Option'),
+  'baroda bnp paribas short term':        K(113036,'Baroda BNP Paribas Short Duration Fund - Regular Plan - Growth Option'),
+  'baroda bnp short term':                K(113036,'Baroda BNP Paribas Short Duration Fund - Regular Plan - Growth Option'),
+  'icici prudential short term':          K(104240,'ICICI Prudential Short Term Fund - Regular Plan - Cumulative'),
+  'icici pru short term':                 K(104240,'ICICI Prudential Short Term Fund - Regular Plan - Cumulative'),
+  'icici short term':                     K(104240,'ICICI Prudential Short Term Fund - Regular Plan - Cumulative'),
+  'hdfc short term debt':                 K(112029,'HDFC Short Term Debt Fund - Regular Plan - Growth'),
+  'hdfc short term':                      K(112029,'HDFC Short Term Debt Fund - Regular Plan - Growth'),
+  'sbi short term debt':                  K(119166,'SBI Short Term Debt Fund - Regular Plan - Growth'),
+  'sbi short term':                       K(119166,'SBI Short Term Debt Fund - Regular Plan - Growth'),
+  'axis short term':                      K(119935,'Axis Short Term Fund - Regular Plan - Growth'),
+  'icici prudential corporate bond':      K(104490,'ICICI Prudential Corporate Bond Fund - Regular Plan - Cumulative'),
+  'icici pru corporate bond':             K(104490,'ICICI Prudential Corporate Bond Fund - Regular Plan - Cumulative'),
+  'hdfc corporate bond':                  K(119180,'HDFC Corporate Bond Fund - Regular Plan - Growth'),
+  'icici prudential all seasons bond':    K(104480,'ICICI Prudential All Seasons Bond Fund - Regular Plan - Growth'),
+  'icici pru all seasons bond':           K(104480,'ICICI Prudential All Seasons Bond Fund - Regular Plan - Growth'),
+  'hdfc liquid':                          K(101418,'HDFC Liquid Fund - Regular Plan - Growth'),
+  'sbi liquid':                           K(119172,'SBI Liquid Fund - Regular Plan - Growth'),
+  'hdfc overnight':                       K(147378,'HDFC Overnight Fund - Regular Plan - Growth'),
+  'sbi magnum gilt':                      K(101442,'SBI Magnum Gilt Fund - Regular Plan - Growth'),
+  'sbi gilt':                             K(101442,'SBI Magnum Gilt Fund - Regular Plan - Growth'),
+  'hdfc banking psu debt':                K(117898,'HDFC Banking and PSU Debt Fund - Regular Plan - Growth'),
+  'hdfc banking and psu':                 K(117898,'HDFC Banking and PSU Debt Fund - Regular Plan - Growth'),
+  'icici prudential banking psu debt':    K(104486,'ICICI Prudential Banking & PSU Debt Fund - Regular Plan - Cumulative'),
+  'sbi banking psu':                      K(119174,'SBI Banking and PSU Fund - Regular Plan - Growth'),
+  'hdfc medium term debt':                K(112034,'HDFC Medium Term Debt Fund - Regular Plan - Growth'),
+  'icici prudential medium term bond':    K(104492,'ICICI Prudential Medium Term Bond Fund - Regular Plan - Cumulative'),
+  'hdfc floating rate debt':              K(100058,'HDFC Floating Rate Debt Fund - Regular Plan - Growth'),
+  'sbi magnum medium duration':           K(101440,'SBI Magnum Medium Duration Fund - Regular Plan - Growth'),
+  'baroda bnp paribas equity savings':    K(130267,'Baroda BNP Paribas Equity Savings Fund - Regular Plan - Growth'),
+  'baroda bnp equity savings':            K(130267,'Baroda BNP Paribas Equity Savings Fund - Regular Plan - Growth'),
+  'icici prudential equity savings':      K(120238,'ICICI Prudential Equity Savings Fund - Regular Plan - Growth'),
+  'icici pru equity savings':             K(120238,'ICICI Prudential Equity Savings Fund - Regular Plan - Growth'),
 };
 
 function generateQueries(name) {
   const queries = [name];
-  const fixes = { 'pru ':'prudential ', 'pudential':'prudential', 'advanatge':'advantage', 'advantge':'advantage', 'flexi cap':'flexicap', 'flexicap':'flexi cap', 'mid cap':'midcap', 'midcap':'mid cap', 'large cap':'largecap', 'largecap':'large cap', 'small cap':'smallcap', 'multi cap':'multicap', 'etf fof':'etf fund of fund', 'fof':'fund of fund', 'gold etf':'gold' };
+  const fixes = { 'pru ':'prudential ', 'pudential':'prudential', 'advanatge':'advantage', 'advantge':'advantage', 'flexi cap':'flexicap', 'flexicap':'flexi cap', 'mid cap':'midcap', 'midcap':'mid cap', 'large cap':'largecap', 'largecap':'large cap', 'small cap':'smallcap', 'multi cap':'multicap', 'etf fof':'etf fund of fund', 'fof':'fund of fund', 'gold etf':'gold', 'short term':'short duration', 'short duration':'short term', 'medium term':'medium duration', 'medium duration':'medium term', 'long term':'long duration', 'long duration':'long term' };
   let lower = name.toLowerCase();
   for (const [a, b] of Object.entries(fixes)) { if (lower.includes(a)) queries.push(lower.replace(a, b)); }
   // Only add 3-word slice — never 2-word (too short, matches wrong funds)
@@ -300,17 +336,35 @@ function fmtC(v) { return v==null ? 'N/A' : (v>0?'+':'')+v.toFixed(1)+'%'; }
 
 // ── SEBI CATEGORY → BENCHMARK MAPPING ────────────────────────────────────
 const CALENDAR = {
+  // Equity
   NIFTY100:  {'2020':'+15.5%','2021':'+25.8%','2022':'+5.0%','2023':'+24.1%','2024':'+15.0%','2025':'+3.3%'},
   NIFTY500:  {'2020':'+16.1%','2021':'+28.4%','2022':'+0.8%','2023':'+25.6%','2024':'+14.6%','2025':'+1.8%'},
   NIFTY_MID: {'2020':'+26.2%','2021':'+46.0%','2022':'+0.2%','2023':'+41.9%','2024':'+23.9%','2025':'-8.1%'},
   NIFTY_SM:  {'2020':'+27.8%','2021':'+63.0%','2022':'-3.7%','2023':'+48.2%','2024':'+18.8%','2025':'-15.6%'},
+  // Hybrid
   CRISIL_H:  {'2020':'+8.4%', '2021':'+17.1%','2022':'+3.2%','2023':'+15.1%','2024':'+10.4%','2025':'+3.2%'},
   CRISIL_H65:{'2020':'+11.2%','2021':'+21.4%','2022':'+4.1%','2023':'+18.8%','2024':'+12.1%','2025':'+3.1%'},
   CRISIL_MA: {'2020':'+9.2%', '2021':'+18.8%','2022':'+5.1%','2023':'+15.4%','2024':'+11.2%','2025':'+4.8%'},
+  // Debt — overnight / liquid / money market / ultra short (very low volatility)
+  DEBT_ON:   {'2020':'+3.9%', '2021':'+3.2%', '2022':'+4.4%', '2023':'+6.5%', '2024':'+6.6%', '2025':'+6.3%'},
+  DEBT_LIQ:  {'2020':'+4.6%', '2021':'+3.5%', '2022':'+4.6%', '2023':'+6.8%', '2024':'+7.1%', '2025':'+6.5%'},
+  DEBT_US:   {'2020':'+6.5%', '2021':'+3.8%', '2022':'+4.3%', '2023':'+6.9%', '2024':'+7.3%', '2025':'+6.8%'},
+  // Debt — low duration / short duration / floating rate
+  DEBT_LOW:  {'2020':'+8.2%', '2021':'+4.0%', '2022':'+3.8%', '2023':'+7.0%', '2024':'+7.4%', '2025':'+7.1%'},
+  DEBT_SD:   {'2020':'+9.6%', '2021':'+4.2%', '2022':'+3.2%', '2023':'+7.2%', '2024':'+7.8%', '2025':'+7.5%'},
+  // Debt — medium / corporate bond / banking & PSU
+  DEBT_MD:   {'2020':'+10.8%','2021':'+3.4%', '2022':'+2.1%', '2023':'+7.4%', '2024':'+8.3%', '2025':'+7.9%'},
+  DEBT_CB:   {'2020':'+10.2%','2021':'+3.8%', '2022':'+2.8%', '2023':'+7.2%', '2024':'+8.0%', '2025':'+7.6%'},
+  // Debt — long duration / gilt / dynamic bond
+  DEBT_LD:   {'2020':'+13.5%','2021':'+2.0%', '2022':'+0.8%', '2023':'+7.6%', '2024':'+9.2%', '2025':'+8.5%'},
+  DEBT_GILT: {'2020':'+12.8%','2021':'+2.2%', '2022':'+1.2%', '2023':'+7.8%', '2024':'+9.5%', '2025':'+8.2%'},
+  DEBT_DYN:  {'2020':'+11.2%','2021':'+3.0%', '2022':'+1.8%', '2023':'+7.5%', '2024':'+8.8%', '2025':'+8.0%'},
+  // Debt — credit risk
+  DEBT_CR:   {'2020':'+6.5%', '2021':'+5.2%', '2022':'+3.8%', '2023':'+7.0%', '2024':'+8.5%', '2025':'+7.5%'},
 };
 
 const CATEGORY_BENCHMARKS = {
-  // Equity
+  // ── Equity ──────────────────────────────────────────────────────────────
   'Large Cap Fund':            { name:'Nifty 100 TRI',           cagr5y:13.2, cagr3y:14.0, ret1y:0.8,  sharpe:0.95, stddev:12.8, calendarReturns:CALENDAR.NIFTY100 },
   'Large & Mid Cap Fund':      { name:'Nifty LargeMidcap 250',   cagr5y:14.1, cagr3y:14.8, ret1y:-0.2, sharpe:0.88, stddev:14.2, calendarReturns:CALENDAR.NIFTY100 },
   'Mid Cap Fund':              { name:'Nifty Midcap 150 TRI',    cagr5y:20.1, cagr3y:17.2, ret1y:-4.8, sharpe:0.85, stddev:17.5, calendarReturns:CALENDAR.NIFTY_MID },
@@ -320,13 +374,33 @@ const CATEGORY_BENCHMARKS = {
   'ELSS':                      { name:'Nifty 500 TRI',           cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5, calendarReturns:CALENDAR.NIFTY500 },
   'Value Fund':                { name:'Nifty 500 TRI',           cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5, calendarReturns:CALENDAR.NIFTY500 },
   'Contra Fund':               { name:'Nifty 500 TRI',           cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5, calendarReturns:CALENDAR.NIFTY500 },
-  // Hybrid
+  'Focused Fund':              { name:'Nifty 500 TRI',           cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5, calendarReturns:CALENDAR.NIFTY500 },
+  'Sectoral Fund':             { name:'Nifty 500 TRI',           cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5, calendarReturns:CALENDAR.NIFTY500 },
+  'Thematic Fund':             { name:'Nifty 500 TRI',           cagr5y:14.8, cagr3y:14.2, ret1y:-1.2, sharpe:0.90, stddev:13.5, calendarReturns:CALENDAR.NIFTY500 },
+  // ── Hybrid ──────────────────────────────────────────────────────────────
   'Balanced Advantage Fund':   { name:'CRISIL Hybrid 50+50 Aggr',cagr5y:10.8, cagr3y:11.2, ret1y:3.5,  sharpe:0.78, stddev:9.8,  calendarReturns:CALENDAR.CRISIL_H },
   'Aggressive Hybrid Fund':    { name:'CRISIL Hybrid 65+35 Aggr',cagr5y:12.1, cagr3y:12.8, ret1y:1.8,  sharpe:0.82, stddev:11.2, calendarReturns:CALENDAR.CRISIL_H65 },
   'Conservative Hybrid Fund':  { name:'CRISIL Hybrid 25+75 Cons',cagr5y:8.4,  cagr3y:8.8,  ret1y:4.2,  sharpe:0.72, stddev:7.2,  calendarReturns:CALENDAR.CRISIL_H },
   'Multi Asset Allocation Fund':{ name:'CRISIL Multi Asset',      cagr5y:11.2, cagr3y:11.8, ret1y:3.8,  sharpe:0.80, stddev:10.1, calendarReturns:CALENDAR.CRISIL_MA },
   'Equity Savings Fund':       { name:'Nifty Equity Savings',    cagr5y:8.8,  cagr3y:9.2,  ret1y:4.8,  sharpe:0.85, stddev:6.8,  calendarReturns:CALENDAR.CRISIL_H },
   'Arbitrage Fund':            { name:'Nifty 50 Arbitrage',      cagr5y:6.2,  cagr3y:6.8,  ret1y:7.2,  sharpe:1.20, stddev:1.2,  calendarReturns:CALENDAR.CRISIL_H },
+  // ── Debt — SEBI mandated benchmarks (NIFTY Debt Indices) ───────────────
+  'Overnight Fund':            { name:'NIFTY 1D Rate Index',                     cagr5y:4.8,  cagr3y:5.8,  ret1y:6.5,  sharpe:3.50, stddev:0.2,  calendarReturns:CALENDAR.DEBT_ON },
+  'Liquid Fund':               { name:'NIFTY Liquid Index A-I',                  cagr5y:5.2,  cagr3y:5.9,  ret1y:7.0,  sharpe:3.20, stddev:0.4,  calendarReturns:CALENDAR.DEBT_LIQ },
+  'Money Market Fund':         { name:'NIFTY Money Market Index A-I',            cagr5y:5.6,  cagr3y:6.2,  ret1y:7.2,  sharpe:2.80, stddev:0.5,  calendarReturns:CALENDAR.DEBT_LIQ },
+  'Ultra Short Duration Fund': { name:'NIFTY Ultra Short Duration Debt Index A-I',cagr5y:5.8, cagr3y:6.3,  ret1y:7.2,  sharpe:2.60, stddev:0.8,  calendarReturns:CALENDAR.DEBT_US },
+  'Low Duration Fund':         { name:'NIFTY Low Duration Debt Index A-I',       cagr5y:6.2,  cagr3y:6.6,  ret1y:7.3,  sharpe:2.20, stddev:1.2,  calendarReturns:CALENDAR.DEBT_LOW },
+  'Short Duration Fund':       { name:'NIFTY Short Duration Debt Index A-II',    cagr5y:6.5,  cagr3y:6.8,  ret1y:7.5,  sharpe:1.80, stddev:1.8,  calendarReturns:CALENDAR.DEBT_SD },
+  'Medium Duration Fund':      { name:'NIFTY Medium Duration Debt Index A-III',  cagr5y:6.8,  cagr3y:7.0,  ret1y:8.0,  sharpe:1.40, stddev:2.5,  calendarReturns:CALENDAR.DEBT_MD },
+  'Medium to Long Duration Fund':{ name:'NIFTY Medium to Long Duration Debt Index A-III', cagr5y:7.0, cagr3y:7.2, ret1y:8.5, sharpe:1.20, stddev:3.2, calendarReturns:CALENDAR.DEBT_MD },
+  'Long Duration Fund':        { name:'NIFTY Long Duration Debt Index A-III',    cagr5y:7.2,  cagr3y:7.5,  ret1y:9.0,  sharpe:1.00, stddev:4.5,  calendarReturns:CALENDAR.DEBT_LD },
+  'Dynamic Bond Fund':         { name:'NIFTY Composite Debt Index A-III',        cagr5y:6.8,  cagr3y:7.0,  ret1y:8.2,  sharpe:1.30, stddev:3.0,  calendarReturns:CALENDAR.DEBT_DYN },
+  'Corporate Bond Fund':       { name:'NIFTY Corporate Bond Index A-II',         cagr5y:6.5,  cagr3y:6.8,  ret1y:7.8,  sharpe:1.60, stddev:2.0,  calendarReturns:CALENDAR.DEBT_CB },
+  'Credit Risk Fund':          { name:'NIFTY Credit Risk Bond Index B-II',       cagr5y:6.2,  cagr3y:6.5,  ret1y:7.5,  sharpe:1.20, stddev:2.8,  calendarReturns:CALENDAR.DEBT_CR },
+  'Banking and PSU Fund':      { name:'NIFTY Banking & PSU Debt Index A-II',     cagr5y:6.5,  cagr3y:6.8,  ret1y:7.6,  sharpe:1.70, stddev:1.8,  calendarReturns:CALENDAR.DEBT_CB },
+  'Gilt Fund':                 { name:'NIFTY All Duration G-Sec Index',          cagr5y:7.0,  cagr3y:7.2,  ret1y:9.0,  sharpe:1.10, stddev:4.2,  calendarReturns:CALENDAR.DEBT_GILT },
+  'Gilt Fund with 10Y':        { name:'NIFTY 10yr Benchmark G-Sec',             cagr5y:7.2,  cagr3y:7.5,  ret1y:9.5,  sharpe:1.00, stddev:5.0,  calendarReturns:CALENDAR.DEBT_GILT },
+  'Floating Rate Fund':        { name:'NIFTY Floating Rate Debt Index',          cagr5y:6.0,  cagr3y:6.4,  ret1y:7.3,  sharpe:2.00, stddev:1.0,  calendarReturns:CALENDAR.DEBT_LOW },
   // Default
   'default':                   { name:'Nifty 100 TRI',           cagr5y:13.2, cagr3y:14.0, ret1y:0.8,  sharpe:0.95, stddev:12.8, calendarReturns:CALENDAR.NIFTY100 },
 };
@@ -336,20 +410,69 @@ function getBenchmark(sebiCategory, fundName) {
   const nameLower = (fundName || '').toLowerCase();
   const cat = (sebiCategory || '').toLowerCase();
 
-  // Name-based override takes priority for hybrid/BAF funds where category can be mislabeled
+  // ── Name-based overrides (take priority — SEBI category from mfapi can be wrong) ──
+  // Hybrid/BAF
   if (nameLower.includes('balanced advantage') || nameLower.includes('dynamic asset allocation') || nameLower.includes('balanced adv'))
     return CATEGORY_BENCHMARKS['Balanced Advantage Fund'];
   if (nameLower.includes('aggressive hybrid')) return CATEGORY_BENCHMARKS['Aggressive Hybrid Fund'];
-  if (nameLower.includes('multi asset')) return CATEGORY_BENCHMARKS['Multi Asset Allocation Fund'];
+  if (nameLower.includes('multi asset') && !nameLower.includes('debt')) return CATEGORY_BENCHMARKS['Multi Asset Allocation Fund'];
+  // Debt — name-based detection for common fund names
+  if (nameLower.includes('overnight')) return CATEGORY_BENCHMARKS['Overnight Fund'];
+  if (nameLower.includes('liquid') && !nameLower.includes('equity')) return CATEGORY_BENCHMARKS['Liquid Fund'];
+  if (nameLower.includes('money market')) return CATEGORY_BENCHMARKS['Money Market Fund'];
+  if (nameLower.includes('ultra short')) return CATEGORY_BENCHMARKS['Ultra Short Duration Fund'];
+  if (nameLower.includes('low duration')) return CATEGORY_BENCHMARKS['Low Duration Fund'];
+  if (nameLower.includes('floating rate')) return CATEGORY_BENCHMARKS['Floating Rate Fund'];
+  if (nameLower.includes('short duration') || nameLower.includes('short term debt') || nameLower.includes('short term bond'))
+    return CATEGORY_BENCHMARKS['Short Duration Fund'];
+  if (nameLower.includes('medium to long') || nameLower.includes('medium long'))
+    return CATEGORY_BENCHMARKS['Medium to Long Duration Fund'];
+  if (nameLower.includes('medium duration') || nameLower.includes('medium term'))
+    return CATEGORY_BENCHMARKS['Medium Duration Fund'];
+  if (nameLower.includes('long duration') || nameLower.includes('long term debt'))
+    return CATEGORY_BENCHMARKS['Long Duration Fund'];
+  if (nameLower.includes('dynamic bond') || nameLower.includes('all seasons bond'))
+    return CATEGORY_BENCHMARKS['Dynamic Bond Fund'];
+  if (nameLower.includes('corporate bond')) return CATEGORY_BENCHMARKS['Corporate Bond Fund'];
+  if (nameLower.includes('credit risk')) return CATEGORY_BENCHMARKS['Credit Risk Fund'];
+  if (nameLower.includes('banking') && nameLower.includes('psu')) return CATEGORY_BENCHMARKS['Banking and PSU Fund'];
+  if (/\bgilt\b/.test(nameLower) && (nameLower.includes('10') || nameLower.includes('constant')))
+    return CATEGORY_BENCHMARKS['Gilt Fund with 10Y'];
+  if (/\bgilt\b/.test(nameLower)) return CATEGORY_BENCHMARKS['Gilt Fund'];
 
   if (!sebiCategory) return CATEGORY_BENCHMARKS['default'];
-  // Match by scheme_category keyword
+
+  // ── Category-based matching (from mfapi scheme_category) ──
+  // Debt categories — check BEFORE equity to avoid false matches
+  if (cat.includes('overnight')) return CATEGORY_BENCHMARKS['Overnight Fund'];
+  if (cat.includes('liquid') && !cat.includes('equity')) return CATEGORY_BENCHMARKS['Liquid Fund'];
+  if (cat.includes('money market')) return CATEGORY_BENCHMARKS['Money Market Fund'];
+  if (cat.includes('ultra short')) return CATEGORY_BENCHMARKS['Ultra Short Duration Fund'];
+  if (cat.includes('low duration')) return CATEGORY_BENCHMARKS['Low Duration Fund'];
+  if (cat.includes('floating rate')) return CATEGORY_BENCHMARKS['Floating Rate Fund'];
+  if (cat.includes('short duration') || (cat.includes('short') && cat.includes('debt')))
+    return CATEGORY_BENCHMARKS['Short Duration Fund'];
+  if (cat.includes('medium to long') || cat.includes('medium long'))
+    return CATEGORY_BENCHMARKS['Medium to Long Duration Fund'];
+  if (cat.includes('medium duration') || (cat.includes('medium') && cat.includes('debt')))
+    return CATEGORY_BENCHMARKS['Medium Duration Fund'];
+  if (cat.includes('long duration')) return CATEGORY_BENCHMARKS['Long Duration Fund'];
+  if (cat.includes('dynamic bond') || cat.includes('dynamic debt'))
+    return CATEGORY_BENCHMARKS['Dynamic Bond Fund'];
+  if (cat.includes('corporate bond')) return CATEGORY_BENCHMARKS['Corporate Bond Fund'];
+  if (cat.includes('credit risk')) return CATEGORY_BENCHMARKS['Credit Risk Fund'];
+  if (cat.includes('banking') && cat.includes('psu')) return CATEGORY_BENCHMARKS['Banking and PSU Fund'];
+  if (cat.includes('gilt') && (cat.includes('10') || cat.includes('constant')))
+    return CATEGORY_BENCHMARKS['Gilt Fund with 10Y'];
+  if (cat.includes('gilt')) return CATEGORY_BENCHMARKS['Gilt Fund'];
+  // Hybrid categories
   if (cat.includes('balanced advantage') || cat.includes('dynamic asset')) return CATEGORY_BENCHMARKS['Balanced Advantage Fund'];
   if (cat.includes('aggressive hybrid')) return CATEGORY_BENCHMARKS['Aggressive Hybrid Fund'];
   if (cat.includes('conservative hybrid')) return CATEGORY_BENCHMARKS['Conservative Hybrid Fund'];
   if (cat.includes('multi asset')) return CATEGORY_BENCHMARKS['Multi Asset Allocation Fund'];
   if (cat.includes('equity savings')) return CATEGORY_BENCHMARKS['Equity Savings Fund'];
   if (cat.includes('arbitrage')) return CATEGORY_BENCHMARKS['Arbitrage Fund'];
+  // Equity categories
   if (cat.includes('small cap')) return CATEGORY_BENCHMARKS['Small Cap Fund'];
   if (cat.includes('mid cap') && !cat.includes('large')) return CATEGORY_BENCHMARKS['Mid Cap Fund'];
   if (cat.includes('large & mid') || cat.includes('large and mid')) return CATEGORY_BENCHMARKS['Large & Mid Cap Fund'];
@@ -358,6 +481,11 @@ function getBenchmark(sebiCategory, fundName) {
   if (cat.includes('multi cap') || cat.includes('multicap')) return CATEGORY_BENCHMARKS['Multi Cap Fund'];
   if (cat.includes('elss') || cat.includes('tax saver')) return CATEGORY_BENCHMARKS['ELSS'];
   if (cat.includes('value')) return CATEGORY_BENCHMARKS['Value Fund'];
+  if (cat.includes('focused')) return CATEGORY_BENCHMARKS['Focused Fund'];
+  if (cat.includes('sectoral') || cat.includes('thematic')) return CATEGORY_BENCHMARKS['Thematic Fund'];
+  // Catch-all for any remaining debt-like category
+  if (cat.includes('debt') || cat.includes('bond') || cat.includes('income'))
+    return CATEGORY_BENCHMARKS['Short Duration Fund'];
   return CATEGORY_BENCHMARKS['default'];
 }
 
@@ -651,10 +779,11 @@ async function fetchFundData(fund) {
 
   // Build cal from narrow-window calData (much more reliable than navAt on big arrays)
   const catLower = (latestInfo.meta?.scheme_category||'').toLowerCase();
-  const isHybridFund = /balanced|hybrid|multi asset|debt|income/.test(catLower);
-  // Multi asset/hybrid funds: realistic annual max ~35%. Pure equity: max 70%.
-  const maxCal = isHybridFund ? 35 : 70;
-  const minCal = isHybridFund ? -20 : -55;
+  const isDebtFund2 = /overnight|liquid|money market|duration|bond|gilt|credit|banking.*psu|floating|debt|income/.test(catLower);
+  const isHybridFund = !isDebtFund2 && /balanced|hybrid|multi asset/.test(catLower);
+  // Debt funds: realistic annual max ~15%, min -5%. Hybrid: max 35%. Pure equity: max 70%.
+  const maxCal = isDebtFund2 ? 18 : isHybridFund ? 35 : 70;
+  const minCal = isDebtFund2 ? -8 : isHybridFund ? -20 : -55;
   const cal = {};
   for (const yr of [2020,2021,2022,2023,2024,2025]) {
     const pair = calData[yr];
@@ -745,7 +874,11 @@ async function getKnowledgeFields(funds, results) {
 FUNDS (with real AMFI return data):
 ${fundList}
 
-Each fund has its own SEBI benchmark (Large Cap → Nifty 100 TRI, Balanced Advantage → CRISIL Hybrid 50+50 Aggr, Mid Cap → Nifty Midcap 150 TRI, etc). Use the correct benchmark for each fund.
+Each fund has its own SEBI benchmark:
+- Equity: Large Cap → Nifty 100 TRI, Mid Cap → Nifty Midcap 150 TRI, Small Cap → Nifty Smallcap 250 TRI, Flexi/Multi Cap → Nifty 500 TRI
+- Hybrid: Balanced Advantage → CRISIL Hybrid 50+50 Aggr, Multi Asset → CRISIL Multi Asset
+- Debt: Overnight → NIFTY 1D Rate Index, Liquid → NIFTY Liquid Index A-I, Short Duration → NIFTY Short Duration Debt Index A-II, Corporate Bond → NIFTY Corporate Bond Index A-II, Gilt → NIFTY All Duration G-Sec Index, Dynamic Bond → NIFTY Composite Debt Index A-III, Banking & PSU → NIFTY Banking & PSU Debt Index A-II
+Use the correct benchmark for each fund based on its SEBI category.
 
 Return this exact structure with REAL data for each fund:
 {
@@ -811,9 +944,10 @@ Return this exact structure with REAL data for each fund:
 Use ACTUAL data from Value Research, AMFI factsheets, Moneycontrol for each fund.
 IMPORTANT: 
 - "ter" must be the REGULAR PLAN expense ratio from AMFI monthly TER disclosure. NOT direct plan.
-  Typical ranges: Large cap equity 1.4-1.8% | Mid/small cap 1.6-2.0% | Balanced advantage 1.5-1.9% | Index funds 0.1-0.3%
+  Typical ranges: Large cap equity 1.4-1.8% | Mid/small cap 1.6-2.0% | Balanced advantage 1.5-1.9% | Index funds 0.1-0.3% | Debt: Overnight/Liquid 0.15-0.30% | Short/Med duration 0.30-0.80% | Long/Gilt/Dynamic 0.50-1.00% | Credit Risk 0.80-1.50%
 - "riskCategory" must be the SEBI-mandated risk label from the fund's KIM/SID: "Very High Risk" / "High Risk" / "Moderately High Risk" / "Moderate Risk" / "Low to Moderate Risk" / "Low Risk"
-- "beta" is vs the fund's own SEBI benchmark (not always Nifty 100). Balanced advantage beta vs CRISIL Hybrid index is typically 0.85-1.10.
+  Debt fund typical labels: Overnight/Liquid → "Low Risk" | Money Market/Ultra Short → "Low to Moderate Risk" | Short Duration/Banking PSU → "Low to Moderate Risk" | Medium/Corporate Bond → "Moderate Risk" | Long/Gilt/Dynamic/Credit → "Moderate Risk" to "Moderately High Risk"
+- "beta" is vs the fund's own SEBI benchmark (not always Nifty 100). Balanced advantage beta vs CRISIL Hybrid index is typically 0.85-1.10. Debt fund beta vs NIFTY Debt Index is typically 0.80-1.20.
 decision=Hold if 5Y alpha>0, Switch if alpha -1% to 0%, Exit if alpha < -1%.`;
 
   const postData = JSON.stringify({
@@ -959,12 +1093,15 @@ function buildReport(funds, results, knowledge) {
         const rawBeta = computedBeta || k.beta;
         if (!rawBeta) return null;
         const b = parseFloat(rawBeta);
-        const isHybrid = (r.meta?.scheme_category||'').toLowerCase().match(/balanced|hybrid|multi asset/);
+        const catLower2 = (r.meta?.scheme_category||'').toLowerCase();
+        const isDebtFund = /overnight|liquid|money market|duration|bond|gilt|credit|banking.*psu|floating|debt|income/.test(catLower2);
+        const isHybrid = /balanced|hybrid|multi asset/.test(catLower2);
+        // Debt funds: beta vs their NIFTY debt index benchmark is typically 0.7–1.3. Cap at 1.5.
         // Hybrid funds: beta vs their benchmark should be 0.5–1.1. Cap at 1.3.
         // Pure equity: beta vs Nifty can reach 1.5 but >1.8 is data error.
-        const maxBeta = isHybrid ? 1.3 : 1.8;
+        const maxBeta = isDebtFund ? 1.5 : isHybrid ? 1.3 : 1.8;
         if (!isNaN(b) && b > maxBeta) {
-          console.warn(`  [BETA CAP] ${r.fund.name}: beta=${b} capped to N/A (>${maxBeta} for ${isHybrid?'hybrid':'equity'})`);
+          console.warn(`  [BETA CAP] ${r.fund.name}: beta=${b} capped to N/A (>${maxBeta} for ${isDebtFund?'debt':isHybrid?'hybrid':'equity'})`);
           return null;
         }
         return rawBeta;
@@ -1048,22 +1185,27 @@ function buildReport(funds, results, knowledge) {
       const cats = results.filter(r=>r.benchmark).map(r=>r.benchmark.name);
       const primaryBM = cats.length ? (cats.sort((a,b)=>cats.filter(x=>x===b).length-cats.filter(x=>x===a).length)[0]) : 'Nifty 100 TRI';
       const bm = results.find(r=>r.benchmark?.name===primaryBM)?.benchmark || CATEGORY_BENCHMARKS['default'] || {name:'Nifty 100 TRI',cagr5y:13.2,cagr3y:14.0,ret1y:0.8,sharpe:0.95,stddev:12.8,calendarReturns:{}};
-      // Calendar returns differ by benchmark - show approximate for primary benchmark
+      // Calendar returns differ by benchmark - use actual benchmark data
       const isHybrid = primaryBM.toLowerCase().includes('hybrid') || primaryBM.toLowerCase().includes('crisil');
+      const isDebt = primaryBM.toLowerCase().includes('nifty') && (primaryBM.toLowerCase().includes('debt') || primaryBM.toLowerCase().includes('bond') || primaryBM.toLowerCase().includes('gilt') || primaryBM.toLowerCase().includes('g-sec') || primaryBM.toLowerCase().includes('rate') || primaryBM.toLowerCase().includes('liquid') || primaryBM.toLowerCase().includes('money') || primaryBM.toLowerCase().includes('floating') || primaryBM.toLowerCase().includes('credit'));
+      // Prefer the benchmark's own calendar returns from CATEGORY_BENCHMARKS
+      const bmCalReturns = bm.calendarReturns || (isDebt
+        ? {'2020':'+7.2%','2021':'+4.0%','2022':'+3.8%','2023':'+7.0%','2024':'+7.4%','2025':'+7.1%'}
+        : isHybrid
+          ? {'2020':'+8.4%','2021':'+17.1%','2022':'+3.2%','2023':'+15.1%','2024':'+10.4%','2025':'+3.2%'}
+          : {'2020':'+15.5%','2021':'+25.8%','2022':'+5.0%','2023':'+24.1%','2024':'+15.0%','2025':'+3.3%'});
       return {
         name:bm.name,
         cagr5y:bm.cagr5y+'%', cagr3y:bm.cagr3y+'%', ret1y:(bm.ret1y>=0?'+':'')+bm.ret1y+'%',
         sharpe:bm.sharpe+'', beta:'1.00', stddev:bm.stddev+'%',
         rolling1yAvg:bm.cagr5y+'%', rolling3yAvg:bm.cagr3y+'%', rolling5yAvg:bm.cagr5y+'%',
-        calendarReturns: isHybrid
-          ? {'2020':'+8.4%','2021':'+17.1%','2022':'+3.2%','2023':'+15.1%','2024':'+10.4%','2025':'+3.2%'}
-          : {'2020':'+15.5%','2021':'+25.8%','2022':'+5.0%','2023':'+24.1%','2024':'+15.0%','2025':'+3.3%'}
+        calendarReturns: bmCalReturns
       };
     })(),
     risk:{blendedBeta:'0.99',bfsiPct:(sectors.find(s=>s.name==='BFSI')?.pct||38)+'%',top5StocksPct:'24%',midSmallPct:funds.length>3?'<5%':'10%',uniqueStocks:`~${uniqueStocks}`,stddev:'14.2%',maxDrawdown:'~-33%',downsideCap:'~93%',upsideCap:'~96%',stressScenarios:stress},
     sectors,
     overlap:{overallPct:overlapPct,verdict:knowledge?.overlap?.verdict||(funds.length>4?'Critical redundancy — multiple funds, one strategy':'Moderate overlap — consolidate'),topStocks},
-    projections:{corpus:fmt(corpus),rows:[{label:'Current portfolio',cagr:blendedCAGR5.toFixed(1)+'%',y5:project(blendedCAGR5,5),y10:project(blendedCAGR5,10),y15:project(blendedCAGR5,15),y20:project(blendedCAGR5,20),type:'bad'},{label:'Nifty 100 Index',cagr:'13.2%',y5:project(13.2,5),y10:project(13.2,10),y15:project(13.2,15),y20:project(13.2,20),type:'mid'},{label:'Recommended portfolio',cagr:recCAGR+'%',y5:project(recCAGR,5),y10:project(recCAGR,10),y15:project(recCAGR,15),y20:project(recCAGR,20),type:'good'}],gap20y:(()=>{
+    projections:{corpus:fmt(corpus),rows:[{label:'Current portfolio',cagr:blendedCAGR5.toFixed(1)+'%',y5:project(blendedCAGR5,5),y10:project(blendedCAGR5,10),y15:project(blendedCAGR5,15),y20:project(blendedCAGR5,20),type:'bad'},{label:portfolioBM?.name||'Benchmark Index',cagr:weightedBMcagr.toFixed(1)+'%',y5:project(weightedBMcagr,5),y10:project(weightedBMcagr,10),y15:project(weightedBMcagr,15),y20:project(weightedBMcagr,20),type:'mid'},{label:'Recommended portfolio',cagr:recCAGR+'%',y5:project(recCAGR,5),y10:project(recCAGR,10),y15:project(recCAGR,15),y20:project(recCAGR,20),type:'good'}],gap20y:(()=>{
       const diff = corpus*Math.pow(1+recCAGR/100,20)-corpus*Math.pow(1+blendedCAGR5/100,20);
       return (diff>=0?'+':'-') + fmt(Math.abs(diff));
     })()},
@@ -1071,38 +1213,74 @@ function buildReport(funds, results, knowledge) {
   // Best fund per SEBI category (Regular Plan - Growth) — used to replace EXIT/SWITCH funds
   recommended: (()=>{
     const BEST_IN_CAT = {
+      // Equity
       'large cap':          {name:'Nippon India Large Cap Fund',    cat:'Large Cap',          cagr5y:'15.9%',sharpe:'0.81',ter:'0.69%'},
       'mid cap':            {name:'Motilal Oswal Midcap Fund',      cat:'Mid Cap',            cagr5y:'28.4%',sharpe:'1.14',ter:'0.58%'},
       'small cap':          {name:'Nippon India Small Cap Fund',    cat:'Small Cap',          cagr5y:'22.4%',sharpe:'0.85',ter:'0.65%'},
       'flexi cap':          {name:'Parag Parikh Flexi Cap Fund',    cat:'Flexi Cap',          cagr5y:'16.3%',sharpe:'0.92',ter:'0.63%'},
       'multi cap':          {name:'Nippon India Multi Cap Fund',    cat:'Multi Cap',          cagr5y:'21.4%',sharpe:'0.88',ter:'0.89%'},
+      // Hybrid
       'balanced advantage': {name:'ICICI Pru Balanced Advantage',  cat:'Balanced Advantage', cagr5y:'11.4%',sharpe:'0.76',ter:'0.95%'},
       'aggressive hybrid':  {name:'ICICI Pru Equity & Debt Fund',  cat:'Aggressive Hybrid',  cagr5y:'14.2%',sharpe:'0.78',ter:'1.12%'},
       'multi asset':        {name:'ICICI Pru Multi Asset Fund',    cat:'Multi Asset',        cagr5y:'14.8%',sharpe:'0.85',ter:'0.99%'},
       'elss':               {name:'Mirae Asset ELSS Tax Saver',    cat:'ELSS',               cagr5y:'16.1%',sharpe:'0.82',ter:'0.63%'},
       'index':              {name:'UTI Nifty 50 Index Fund',       cat:'Index',              cagr5y:'14.7%',sharpe:'0.94',ter:'0.20%'},
-      'dynamic bond':       {name:'ICICI Pru All Seasons Bond',    cat:'Dynamic Bond',       cagr5y:'7.9%', sharpe:'1.08',ter:'0.43%'},
-      'short duration':     {name:'HDFC Short Term Debt Fund',     cat:'Short Duration',     cagr5y:'7.1%', sharpe:'1.10',ter:'0.30%'},
       'gold':               {name:'SBI Gold Fund',                 cat:'Gold FoF',           cagr5y:'13.8%',sharpe:'0.65',ter:'0.20%'},
+      // Debt — SEBI categories with best Regular Plan funds
+      'overnight':          {name:'HDFC Overnight Fund',           cat:'Overnight',          cagr5y:'5.0%', sharpe:'3.50',ter:'0.10%'},
+      'liquid':             {name:'HDFC Liquid Fund',              cat:'Liquid',             cagr5y:'5.5%', sharpe:'3.20',ter:'0.20%'},
+      'money market':       {name:'HDFC Money Market Fund',        cat:'Money Market',       cagr5y:'5.8%', sharpe:'2.80',ter:'0.22%'},
+      'ultra short':        {name:'HDFC Ultra Short Term Fund',    cat:'Ultra Short Duration',cagr5y:'6.0%',sharpe:'2.60',ter:'0.28%'},
+      'low duration':       {name:'HDFC Low Duration Fund',        cat:'Low Duration',       cagr5y:'6.4%', sharpe:'2.20',ter:'0.30%'},
+      'short duration':     {name:'HDFC Short Term Debt Fund',     cat:'Short Duration',     cagr5y:'7.1%', sharpe:'1.80',ter:'0.30%'},
+      'medium duration':    {name:'SBI Magnum Medium Duration',    cat:'Medium Duration',    cagr5y:'7.2%', sharpe:'1.40',ter:'0.65%'},
+      'medium to long':     {name:'ICICI Pru Medium Term Bond',    cat:'Medium to Long',     cagr5y:'7.5%', sharpe:'1.20',ter:'0.90%'},
+      'long duration':      {name:'ICICI Pru Long Term Bond',      cat:'Long Duration',      cagr5y:'7.4%', sharpe:'1.00',ter:'0.70%'},
+      'dynamic bond':       {name:'ICICI Pru All Seasons Bond',    cat:'Dynamic Bond',       cagr5y:'7.9%', sharpe:'1.30',ter:'0.43%'},
+      'corporate bond':     {name:'HDFC Corporate Bond Fund',      cat:'Corporate Bond',     cagr5y:'7.0%', sharpe:'1.60',ter:'0.30%'},
+      'credit risk':        {name:'HDFC Credit Risk Debt Fund',    cat:'Credit Risk',        cagr5y:'6.8%', sharpe:'1.20',ter:'0.80%'},
+      'banking psu':        {name:'HDFC Banking & PSU Debt Fund',  cat:'Banking & PSU Debt', cagr5y:'6.8%', sharpe:'1.70',ter:'0.25%'},
+      'gilt':               {name:'SBI Magnum Gilt Fund',          cat:'Gilt',               cagr5y:'7.2%', sharpe:'1.10',ter:'0.50%'},
+      'gilt 10y':           {name:'SBI Magnum Const Mat Gilt 10Y', cat:'Gilt 10Y',           cagr5y:'7.5%', sharpe:'1.00',ter:'0.45%'},
+      'floating rate':      {name:'HDFC Floating Rate Debt Fund',  cat:'Floating Rate',      cagr5y:'6.2%', sharpe:'2.00',ter:'0.25%'},
     };
 
     // Normalize scheme_category → BEST_IN_CAT key
     const normCat = sebiCat => {
       const c = (sebiCat||'').toLowerCase();
+      // Debt categories — check first to avoid partial matches with equity
+      if (c.includes('overnight')) return 'overnight';
+      if (c.includes('liquid') && !c.includes('equity')) return 'liquid';
+      if (c.includes('money market')) return 'money market';
+      if (c.includes('ultra short')) return 'ultra short';
+      if (c.includes('low duration')) return 'low duration';
+      if (c.includes('floating rate')) return 'floating rate';
+      if (c.includes('short duration') || (c.includes('short') && c.includes('debt'))) return 'short duration';
+      if (c.includes('medium to long') || c.includes('medium long')) return 'medium to long';
+      if (c.includes('medium duration') || (c.includes('medium') && c.includes('debt'))) return 'medium duration';
+      if (c.includes('long duration')) return 'long duration';
+      if (c.includes('dynamic bond') || c.includes('dynamic debt')) return 'dynamic bond';
+      if (c.includes('corporate bond')) return 'corporate bond';
+      if (c.includes('credit risk')) return 'credit risk';
+      if (c.includes('banking') && c.includes('psu')) return 'banking psu';
+      if (c.includes('gilt') && (c.includes('10') || c.includes('constant'))) return 'gilt 10y';
+      if (c.includes('gilt')) return 'gilt';
+      // Hybrid
       if (c.includes('balanced advantage') || c.includes('dynamic asset')) return 'balanced advantage';
+      if (c.includes('aggressive hybrid')) return 'aggressive hybrid';
+      if (c.includes('multi asset')) return 'multi asset';
+      if (c.includes('hybrid')) return 'balanced advantage'; // catch-all for hybrid
+      // Equity
       if (c.includes('large cap') && !c.includes('mid')) return 'large cap';
       if (c.includes('mid cap') && !c.includes('small')) return 'mid cap';
       if (c.includes('small cap')) return 'small cap';
       if (c.includes('flexi cap') || c.includes('flexicap')) return 'flexi cap';
       if (c.includes('multi cap') || c.includes('multicap')) return 'multi cap';
-      if (c.includes('multi asset')) return 'multi asset';
-      if (c.includes('aggressive hybrid')) return 'aggressive hybrid';
       if (c.includes('elss') || c.includes('tax saver')) return 'elss';
       if (c.includes('index') || c.includes('nifty') || c.includes('sensex')) return 'index';
-      if (c.includes('dynamic bond')) return 'dynamic bond';
-      if (c.includes('short duration') || c.includes('short term')) return 'short duration';
       if (c.includes('gold')) return 'gold';
-      if (c.includes('hybrid')) return 'balanced advantage'; // catch-all for hybrid
+      // Catch-all for remaining debt categories
+      if (c.includes('debt') || c.includes('bond') || c.includes('income')) return 'short duration';
       return null;
     };
 
@@ -1329,6 +1507,14 @@ const server = http.createServer((req, res) => {
   });
 });
 
-server.listen(process.env.PORT || 3000, () => {
-  console.log(`JD MF Report v1 on port ${process.env.PORT||3000} | key:${!!ANTHROPIC_API_KEY}`);
+server.listen(process.env.PORT || 3000, '0.0.0.0', () => {
+  console.log(`JD MF Report v2 on port ${process.env.PORT||3000} | key:${!!ANTHROPIC_API_KEY}`);
+});
+
+// Prevent uncaught errors from crashing the server (Render kills on port loss)
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT]', err.message, err.stack?.split('\n').slice(0,3).join(' | '));
+});
+process.on('unhandledRejection', (err) => {
+  console.error('[UNHANDLED]', err?.message || err);
 });

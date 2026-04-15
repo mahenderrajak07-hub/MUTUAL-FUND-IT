@@ -553,8 +553,9 @@ async function fetchFundData(fund) {
   // TWO-PHASE FETCH — reliable without endDate (mfapi.in ignores endDate)
   // Phase A: CAGR points — 4 parallel narrow-window requests
   const code = scheme.schemeCode;
+  console.log(`  [FETCH] ${scheme.schemeName} code=${code}`);
   const [rLatest, r1y, r3y, r5y] = await Promise.all([
-    httpsGet('api.mfapi.in', `/mf/${code}/latest`, 6000),
+    httpsGet('api.mfapi.in', `/mf/${code}/latest`, 8000).catch(e => { console.warn(`  [FETCH-ERR] /latest: ${e.message}`); return null; }),
     httpsGet('api.mfapi.in', `/mf/${code}${window7(d1y)}`, 6000).catch(()=>null),
     httpsGet('api.mfapi.in', `/mf/${code}${window7(d3y)}`, 6000).catch(()=>null),
     httpsGet('api.mfapi.in', `/mf/${code}${window7(d5y)}`, 6000).catch(()=>null),
@@ -566,12 +567,57 @@ async function fetchFundData(fund) {
   const rCalAll = await httpsGet('api.mfapi.in', `/mf/${code}?startDate=01-12-2019`, 12000) // start from Dec 2019 for proper 2020 open
     .catch(()=>null);
 
-  if (!rLatest || rLatest.status !== 200) return { fund, amt, error: 'NAV fetch failed' };
+  if (!rLatest || rLatest.status !== 200) {
+    // If this was a KNOWN_SCHEMES entry (not already a retry), fall back to live AMFI search
+    if (!fund._overrideScheme) {
+      console.warn(`  [NAV-FAIL] ${scheme.schemeName} (${scheme.schemeCode}): /latest returned ${rLatest?.status||'null'} — trying live search`);
+      const liveScheme = await (async () => {
+        for (const q of generateQueries(fund.name)) {
+          try {
+            const r = await httpsGet('api.mfapi.in', `/mf/search?q=${encodeURIComponent(q)}`, 6000);
+            if (r.status !== 200) continue;
+            const schemes = JSON.parse(r.body);
+            if (!schemes.length) continue;
+            const best = pickBest(schemes, fund.name);
+            if (best && best.schemeCode !== scheme.schemeCode) return best;
+          } catch {}
+        }
+        return null;
+      })();
+      if (liveScheme) {
+        console.log(`  [NAV-FIX] Retrying with live scheme: ${liveScheme.schemeName} (${liveScheme.schemeCode})`);
+        return fetchFundData({ ...fund, _overrideScheme: liveScheme });
+      }
+    }
+    return { fund, amt, error: 'NAV fetch failed' };
+  }
 
   const latestInfo = JSON.parse(rLatest.body);
   const latestNav = parseFloat(latestInfo.data?.[0]?.nav || latestInfo.data?.nav || 0);
   const latestDate = latestInfo.data?.[0]?.date || latestInfo.data?.date || '';
-  if (!latestNav) return { fund, amt, error: 'Invalid NAV data' };
+  if (!latestNav) {
+    if (!fund._overrideScheme) {
+      console.warn(`  [NAV-EMPTY] ${scheme.schemeName} (${scheme.schemeCode}): NAV=0 — trying live search`);
+      const liveScheme2 = await (async () => {
+        for (const q of generateQueries(fund.name)) {
+          try {
+            const r = await httpsGet('api.mfapi.in', `/mf/search?q=${encodeURIComponent(q)}`, 6000);
+            if (r.status !== 200) continue;
+            const schemes = JSON.parse(r.body);
+            if (!schemes.length) continue;
+            const best = pickBest(schemes, fund.name);
+            if (best && best.schemeCode !== scheme.schemeCode) return best;
+          } catch {}
+        }
+        return null;
+      })();
+      if (liveScheme2) {
+        console.log(`  [NAV-FIX] Retrying with: ${liveScheme2.schemeName} (${liveScheme2.schemeCode})`);
+        return fetchFundData({ ...fund, _overrideScheme: liveScheme2 });
+      }
+    }
+    return { fund, amt, error: 'Invalid NAV data' };
+  }
 
   // STALENESS CHECK: if NAV date is >60 days old, scheme is discontinued or KNOWN_SCHEMES has wrong code
   // e.g. scheme 119230 (old Kotak BAF) returns NAV from 2014 → must reject and retry with live search

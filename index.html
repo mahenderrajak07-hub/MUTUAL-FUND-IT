@@ -524,23 +524,31 @@ function buildDashboard(d,funds){
   </tr>`).join('')}</tbody></table></div>
   <div style="font-size:10px;color:var(--muted);margin-top:4px">*2020 partial year · <span class="d-hl-g">Beat BM</span> <span class="d-hl-a">Near BM</span> <span class="d-hl-r">Lagged BM</span></div></div>`;
 
-  h+=`<div style="margin-bottom:1.25rem"><div class="d-sec-hd">Rolling returns — consistency</div><div class="d-g3">
-    <div class="d-card"><div style="font-size:12px;font-weight:500;margin-bottom:8px">1-year rolling</div>
-    <table class="d-tbl"><thead><tr><th>Fund</th><th class="d-nr">Avg</th><th class="d-nr">% beats BM</th><th class="d-nr">Worst</th></tr></thead><tbody>
-    ${F.map(f=>`<tr><td style="font-weight:500">${f.name.split(' ').slice(0,2).join(' ')}</td><td class="d-nr d-o">${f.rolling1yAvg}</td><td class="d-nr ${parseInt(f.rolling1yBeatPct)>50?'d-o':'d-r'}">${f.rolling1yBeatPct}</td><td class="d-nr d-r">${f.rolling1yWorst}</td></tr>`).join('')}
-    <tr style="background:var(--paper)"><td style="color:var(--muted);font-size:10px;white-space:nowrap">${B.name}</td><td class="d-nr d-b">${B.rolling1yAvg}</td><td class="d-nr">—</td><td class="d-nr">—</td></tr>
-    </tbody></table></div>
-    <div class="d-card"><div style="font-size:12px;font-weight:500;margin-bottom:8px">3-year rolling</div>
-    <table class="d-tbl"><thead><tr><th>Fund</th><th class="d-nr">Avg</th><th class="d-nr">% beats BM</th><th class="d-nr">Min</th></tr></thead><tbody>
-    ${F.map(f=>`<tr><td style="font-weight:500">${f.name.split(' ').slice(0,2).join(' ')}</td><td class="d-nr d-o">${f.rolling3yAvg}</td><td class="d-nr ${parseInt(f.rolling3yBeatPct)>50?'d-o':'d-r'}">${f.rolling3yBeatPct}</td><td class="d-nr ${parseFloat(f.rolling3yMin)>8?'d-o':'d-r'}">${f.rolling3yMin}</td></tr>`).join('')}
-    <tr style="background:var(--paper)"><td style="color:var(--muted);font-size:10px;white-space:nowrap">${B.name}</td><td class="d-nr d-b">${B.rolling3yAvg}</td><td class="d-nr">—</td><td class="d-nr">—</td></tr>
-    </tbody></table></div>
-    <div class="d-card"><div style="font-size:12px;font-weight:500;margin-bottom:8px">5-year rolling</div>
-    <table class="d-tbl"><thead><tr><th>Fund</th><th class="d-nr">Avg</th><th class="d-nr">% beats BM</th><th class="d-nr">Min</th></tr></thead><tbody>
-    ${F.map(f=>`<tr><td style="font-weight:500">${f.name.split(' ').slice(0,2).join(' ')}</td><td class="d-nr d-o">${f.rolling5yAvg||'N/A'}</td><td class="d-nr ${parseInt(f.rolling5yBeatPct)>50?'d-o':'d-r'}">${f.rolling5yBeatPct||'N/A'}</td><td class="d-nr ${parseFloat(f.rolling5yMin)>8?'d-o':'d-r'}">${f.rolling5yMin||'N/A'}</td></tr>`).join('')}
-    <tr style="background:var(--paper)"><td style="color:var(--muted);font-size:10px;white-space:nowrap">${B.name}</td><td class="d-nr d-b">${B.rolling5yAvg||B.cagr5y}</td><td class="d-nr">—</td><td class="d-nr">—</td></tr>
-    </tbody></table></div>
-  </div></div>`;
+  h+=`<div style="margin-bottom:1.25rem"><div class="d-sec-hd">Rolling returns — consistency</div>
+  <div class="d-card" style="padding:0;overflow:hidden"><table class="d-tbl"><thead><tr>
+    <th style="min-width:120px">Fund</th>
+    <th class="d-nc" colspan="3" style="border-left:1px solid rgba(192,138,42,0.1)">1Y Rolling</th>
+    <th class="d-nc" colspan="3" style="border-left:1px solid rgba(192,138,42,0.1)">3Y Rolling</th>
+    <th class="d-nc" colspan="3" style="border-left:1px solid rgba(192,138,42,0.1)">5Y Rolling</th>
+  </tr><tr>
+    <th></th>
+    <th class="d-nr" style="border-left:1px solid rgba(192,138,42,0.1)">Avg</th><th class="d-nr">Beat%</th><th class="d-nr">Worst</th>
+    <th class="d-nr" style="border-left:1px solid rgba(192,138,42,0.1)">Avg</th><th class="d-nr">Beat%</th><th class="d-nr">Min</th>
+    <th class="d-nr" style="border-left:1px solid rgba(192,138,42,0.1)">Avg</th><th class="d-nr">Beat%</th><th class="d-nr">Min</th>
+  </tr></thead><tbody>
+  ${F.map(f=>`<tr>
+    <td style="font-weight:500">${f.name.split(' ').slice(0,3).join(' ')}</td>
+    <td class="d-nr d-o" style="border-left:1px solid rgba(192,138,42,0.05)">${f.rolling1yAvg}</td><td class="d-nr ${parseInt(f.rolling1yBeatPct)>50?'d-o':'d-r'}">${f.rolling1yBeatPct}</td><td class="d-nr d-r">${f.rolling1yWorst}</td>
+    <td class="d-nr d-o" style="border-left:1px solid rgba(192,138,42,0.05)">${f.rolling3yAvg}</td><td class="d-nr ${parseInt(f.rolling3yBeatPct)>50?'d-o':'d-r'}">${f.rolling3yBeatPct}</td><td class="d-nr ${parseFloat(f.rolling3yMin)>8?'d-o':'d-r'}">${f.rolling3yMin}</td>
+    <td class="d-nr d-o" style="border-left:1px solid rgba(192,138,42,0.05)">${f.rolling5yAvg||'N/A'}</td><td class="d-nr ${parseInt(f.rolling5yBeatPct)>50?'d-o':'d-r'}">${f.rolling5yBeatPct||'N/A'}</td><td class="d-nr ${parseFloat(f.rolling5yMin)>8?'d-o':'d-r'}">${f.rolling5yMin||'N/A'}</td>
+  </tr>`).join('')}
+  ${(d.benchmarkRows&&d.benchmarkRows.length?d.benchmarkRows:[B]).map(bm=>`<tr style="background:rgba(255,248,235,0.6)">
+    <td style="color:var(--muted);font-size:10px">${(bm.name||'Benchmark').split(' ').slice(0,4).join(' ')}</td>
+    <td class="d-nr d-b" style="border-left:1px solid rgba(192,138,42,0.05)">${bm.rolling1yAvg||bm.cagr5y||B.rolling1yAvg}</td><td class="d-nr">—</td><td class="d-nr">—</td>
+    <td class="d-nr d-b" style="border-left:1px solid rgba(192,138,42,0.05)">${bm.rolling3yAvg||bm.cagr3y||B.rolling3yAvg}</td><td class="d-nr">—</td><td class="d-nr">—</td>
+    <td class="d-nr d-b" style="border-left:1px solid rgba(192,138,42,0.05)">${bm.rolling5yAvg||bm.cagr5y||B.rolling5yAvg||B.cagr5y}</td><td class="d-nr">—</td><td class="d-nr">—</td>
+  </tr>`).join('')}
+  </tbody></table></div></div>`;
 
   h+=`<div style="margin-bottom:1.25rem"><div class="d-sec-hd">Sector concentration & overlap</div><div class="d-g2">
     <div class="d-card"><div style="font-size:12px;font-weight:500;margin-bottom:10px">Blended sector exposure</div>

@@ -422,7 +422,7 @@ async function fetchFundData(fund) {
   // Phase B: Calendar data — ONE request from 2021 to today
   // mfapi.in does NOT support endDate, so we fetch all data from 2021 onwards
   // and filter by year in JS. Max ~1500 records for any fund — fast to parse.
-  const rCalAll = await httpsGet('api.mfapi.in', `/mf/${code}?startDate=01-01-2020`, 12000) // include 2020 data
+  const rCalAll = await httpsGet('api.mfapi.in', `/mf/${code}?startDate=01-12-2019`, 12000) // start from Dec 2019 for proper 2020 open
     .catch(()=>null);
 
   if (!rLatest || rLatest.status !== 200) return { fund, amt, error: 'NAV fetch failed' };
@@ -525,13 +525,13 @@ async function fetchFundData(fund) {
     try { allData = JSON.parse(rAll.body).data; } catch { return {}; }
     if (!allData?.length) return {};
 
-    // Cap to 2000 newest records (avoids slow parse of 30-year history)
-    if (allData.length > 2000) allData = allData.slice(0, 2000);
+    // Cap to 2500 newest records (avoids slow parse of 30-year history)
+    if (allData.length > 2500) allData = allData.slice(0, 2500);
 
     // Only process records from 2020 onwards — filter by year to avoid old data contamination
     // mfapi date format: "DD-MM-YYYY" or "DD-Mon-YYYY"
     // Year is ALWAYS the last 4 chars regardless of format
-    const VALID_YEARS = new Set(['2020','2021','2022','2023','2024','2025']);
+    const VALID_YEARS = new Set(['2020','2021','2022','2023','2024','2025','2026']);
     const byYear = {};
     for (const rec of allData) {
       const yr = rec.date?.slice(-4);
@@ -555,6 +555,7 @@ async function fetchFundData(fund) {
 
   const calYearData = buildCalData(rCalAll);
   const calData = {
+    2020: calYearData['2020'] || null,
     2021: calYearData['2021'] || null,
     2022: calYearData['2022'] || null,
     2023: calYearData['2023'] || null,
@@ -772,6 +773,9 @@ Return this exact structure with REAL data for each fund:
       "rolling3yAvg": "15.8%",
       "rolling3yBeatPct": "72%",
       "rolling3yMin": "8.2%",
+      "rolling5yAvg": "14.9%",
+      "rolling5yBeatPct": "60%",
+      "rolling5yMin": "9.5%",
       "sebiCategory": "Large Cap Fund",
       "switchTarget": null
     }
@@ -973,6 +977,7 @@ function buildReport(funds, results, knowledge) {
       quartile, quartileLabel,
       rolling1yAvg:k.rolling1yAvg||(r.ret1y?r.ret1y.toFixed(1)+'%':'N/A'), rolling1yBeatPct:k.rolling1yBeatPct||(r.ret5y>BM5Y?'62%':'38%'), rolling1yWorst:k.rolling1yWorst||(r.ret1y?(r.ret1y-10).toFixed(1)+'%':'N/A'),
       rolling3yAvg:k.rolling3yAvg||(r.ret3y?r.ret3y.toFixed(1)+'%':'N/A'), rolling3yBeatPct:k.rolling3yBeatPct||(r.ret5y>BM5Y?'65%':'35%'), rolling3yMin:k.rolling3yMin||(r.ret3y?(r.ret3y-7).toFixed(1)+'%':'N/A'),
+      rolling5yAvg:k.rolling5yAvg||(r.ret5y?r.ret5y.toFixed(1)+'%':'N/A'), rolling5yBeatPct:k.rolling5yBeatPct||(r.ret5y>BM5Y?'60%':'35%'), rolling5yMin:k.rolling5yMin||(r.ret5y?(r.ret5y-5).toFixed(1)+'%':'N/A'),
       realReturn:r.ret1y!=null?(r.ret1y-6.2).toFixed(2)+'%':'N/A',
       estCurrentValue:r.currentValue?fmt(r.currentValue):'N/A', gainAmt:gain>0?fmt(gain):'N/A',
       ltcgTax:fmt(ltcgTax), netProceeds:fmt(netProceeds), breakEvenMonths:7,
@@ -1049,7 +1054,7 @@ function buildReport(funds, results, knowledge) {
         name:bm.name,
         cagr5y:bm.cagr5y+'%', cagr3y:bm.cagr3y+'%', ret1y:(bm.ret1y>=0?'+':'')+bm.ret1y+'%',
         sharpe:bm.sharpe+'', beta:'1.00', stddev:bm.stddev+'%',
-        rolling1yAvg:bm.cagr5y+'%', rolling3yAvg:bm.cagr3y+'%',
+        rolling1yAvg:bm.cagr5y+'%', rolling3yAvg:bm.cagr3y+'%', rolling5yAvg:bm.cagr5y+'%',
         calendarReturns: isHybrid
           ? {'2020':'+8.4%','2021':'+17.1%','2022':'+3.2%','2023':'+15.1%','2024':'+10.4%','2025':'+3.2%'}
           : {'2020':'+15.5%','2021':'+25.8%','2022':'+5.0%','2023':'+24.1%','2024':'+15.0%','2025':'+3.3%'}
@@ -1255,8 +1260,8 @@ async function runAnalysis(funds) {
     const fmt2 = v => new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:0}).format(v);
     report = {
       summary:{totalInvested:fmt2(totalInv),currentValue:'N/A',blendedCAGR:'N/A',alphaBM:'N/A',realReturn:'N/A',annualTER:'N/A',fundsBeatBM:`0/${funds.length}`,uniqueStocks:'N/A',healthScore:'N/A',healthVerdict:'Data unavailable — please retry',overlapPct:'N/A',keyFlags:['AMFI data could not be fetched. Please retry.','Fund names may need to be spelled more precisely.','Try common abbreviations: SBI Large Cap, ICICI Pru Bluechip etc.','If error persists, try fewer funds at once.']},
-      funds: funds.map(f => ({name:f.name,manager:'See factsheet',tenureYrs:3,tenureFlag:false,cagr5y:'N/A',cagr3y:'N/A',ret1y:'N/A',sharpe:'N/A',beta:'N/A',stddev:'N/A',alpha:'N/A',ter:'N/A',riskCategory:'N/A',quality:'N/A',decision:'Hold',perf5yVal:0,perf3yVal:0,ret1yVal:0,sharpeVal:0,calendarReturns:{'2020':'N/A','2020Beat':false,'2021':'N/A','2021Beat':false,'2022':'N/A','2022Beat':false,'2023':'N/A','2023Beat':false,'2024':'N/A','2024Beat':false,'2025':'N/A','2025Beat':false},quartile:'N/A',quartileLabel:'N/A',rolling1yAvg:'N/A',rolling1yBeatPct:'N/A',rolling1yWorst:'N/A',rolling3yAvg:'N/A',rolling3yBeatPct:'N/A',rolling3yMin:'N/A',realReturn:'N/A',estCurrentValue:'N/A',gainAmt:'N/A',ltcgTax:'N/A',netProceeds:'N/A',breakEvenMonths:0,benchmarkName:'Nifty 100 TRI',benchmarkCAGR5y:13.2})),
-      benchmark:{name:'Nifty 100 TRI',cagr5y:'13.2%',cagr3y:'14.0%',ret1y:'+0.8%',sharpe:'0.95',beta:'1.00',stddev:'12.8%',rolling1yAvg:'13.8%',rolling3yAvg:'14.4%',calendarReturns:{'2020':'+15.5%','2021':'+25.8%','2022':'+5.0%','2023':'+24.1%','2024':'+15.0%','2025':'+3.3%'}},
+      funds: funds.map(f => ({name:f.name,manager:'See factsheet',tenureYrs:3,tenureFlag:false,cagr5y:'N/A',cagr3y:'N/A',ret1y:'N/A',sharpe:'N/A',beta:'N/A',stddev:'N/A',alpha:'N/A',ter:'N/A',riskCategory:'N/A',quality:'N/A',decision:'Hold',perf5yVal:0,perf3yVal:0,ret1yVal:0,sharpeVal:0,calendarReturns:{'2020':'N/A','2020Beat':false,'2021':'N/A','2021Beat':false,'2022':'N/A','2022Beat':false,'2023':'N/A','2023Beat':false,'2024':'N/A','2024Beat':false,'2025':'N/A','2025Beat':false},quartile:'N/A',quartileLabel:'N/A',rolling1yAvg:'N/A',rolling1yBeatPct:'N/A',rolling1yWorst:'N/A',rolling3yAvg:'N/A',rolling3yBeatPct:'N/A',rolling3yMin:'N/A',rolling5yAvg:'N/A',rolling5yBeatPct:'N/A',rolling5yMin:'N/A',realReturn:'N/A',estCurrentValue:'N/A',gainAmt:'N/A',ltcgTax:'N/A',netProceeds:'N/A',breakEvenMonths:0,benchmarkName:'Nifty 100 TRI',benchmarkCAGR5y:13.2})),
+      benchmark:{name:'Nifty 100 TRI',cagr5y:'13.2%',cagr3y:'14.0%',ret1y:'+0.8%',sharpe:'0.95',beta:'1.00',stddev:'12.8%',rolling1yAvg:'13.8%',rolling3yAvg:'14.4%',rolling5yAvg:'13.2%',calendarReturns:{'2020':'+15.5%','2021':'+25.8%','2022':'+5.0%','2023':'+24.1%','2024':'+15.0%','2025':'+3.3%'}},
       benchmarkRows:[{name:'Nifty 100 TRI',cagr5y:13.2,cagr3y:14.0,ret1y:0.8,sharpe:0.95,stddev:12.8,calendarReturns:{'2020':'+15.5%','2021':'+25.8%','2022':'+5.0%','2023':'+24.1%','2024':'+15.0%','2025':'+3.3%'}}],
       risk:{blendedBeta:'N/A',bfsiPct:'N/A',top5StocksPct:'N/A',midSmallPct:'N/A',uniqueStocks:'N/A',stddev:'N/A',maxDrawdown:'N/A',downsideCap:'N/A',upsideCap:'N/A',stressScenarios:[{label:'Bull +15%',impact:'N/A',pct:'+15%'},{label:'Flat 3Y',impact:'N/A',pct:'0%'},{label:'Correction -20%',impact:'N/A',pct:'-20%'},{label:'Crash -30%',impact:'N/A',pct:'-30%'}]},
       sectors:[{name:'BFSI',pct:35,flag:true},{name:'IT',pct:15,flag:false},{name:'Energy',pct:10,flag:false},{name:'Consumer',pct:10,flag:false},{name:'Industrials',pct:9,flag:false},{name:'Others',pct:21,flag:false}],

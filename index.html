@@ -469,8 +469,8 @@ function buildDashboard(d,funds){
     <th class="d-nr">5Y CAGR</th><th class="d-nr">3Y CAGR</th><th class="d-nr">1Y</th>
     <th class="d-nr">Sharpe</th><th class="d-nr">Beta</th><th class="d-nr">StdDev</th><th class="d-nr">Alpha vs BM</th>
   </tr></thead><tbody>
-  ${F.map(f=>`<tr>
-    <td><div class="d-fn" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px" title="${f.name}">${f.name}</div><div class="d-fs" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px">${f.manager||'See factsheet'}</div></td>
+  ${F.map(f=>{const amcName=(f.name.split(' ')[0]||'').toLowerCase();const amcUrls={'sbi':'https://www.sbimf.com','hdfc':'https://www.hdfcfund.com','icici':'https://www.icicipruamc.com','axis':'https://www.axismf.com','kotak':'https://www.kotakmf.com','nippon':'https://www.nipponindiamf.com','baroda':'https://www.barodabnpparibasmf.in','mirae':'https://www.miraeassetmf.co.in','parag':'https://www.ppfas.com','dsp':'https://www.dspim.com','uti':'https://www.utimf.com','franklin':'https://www.franklintempletonindia.com','motilal':'https://www.motilaloswalmf.com','sundaram':'https://www.sundarammutual.com','bandhan':'https://www.bandhanmutual.com','lic':'https://www.licmf.com','quant':'https://www.quantmutual.com','invesco':'https://www.invescomutualfund.com'};return `<tr>
+    <td><div class="d-fn" title="${f.name}">${f.name}</div><div class="d-fs"><a href="${amcUrls[amcName]||'https://www.amfiindia.com'}" target="_blank" style="color:var(--gold-dark);text-decoration:none;font-size:9px">AMC Factsheet ↗</a></div></td>
     <td class="d-nr ${f.perf5yVal>13?'d-g':f.perf5yVal>11?'d-o':'d-r'}">${f.cagr5y}</td>
     <td class="d-nr ${f.perf3yVal>13?'d-g':f.perf3yVal>11?'d-o':'d-r'}">${f.cagr3y}</td>
     <td class="d-nr ${f.ret1yVal>0?'d-g':'d-r'}">${f.ret1y}</td>
@@ -496,7 +496,7 @@ function buildDashboard(d,funds){
     <th class="d-nc">Quality</th><th class="d-nc">Decision</th>
   </tr></thead><tbody>
   ${F.map(f=>{const shortRisk=(f.riskCategory||'—').replace('Moderately ','Mod. ');return `<tr>
-    <td><div class="d-fn">${f.name.split(' ').slice(0,4).join(' ')}</div></td>
+    <td><div class="d-fn">${f.name.split(' ').slice(0,4).join(' ')}</div><div class="d-fs">${f.manager||'See factsheet'}</div></td>
     <td class="d-nr">${f.ter||'N/A'}</td>
     <td class="d-nc"><span class="d-tag d-tb" style="white-space:nowrap">${shortRisk}</span></td>
     <td class="d-nc"><span class="d-tag ${f.tenureFlag?'d-to':'d-tb'}">${f.tenureYrs}yr${f.tenureFlag?' ⚠':''}</span></td>
@@ -515,7 +515,7 @@ function buildDashboard(d,funds){
     ${years.map(y=>`<th class="d-nc">${y}${y==='2020'?'*':''}</th>`).join('')}
     <th class="d-nc">Quartile</th>
   </tr></thead><tbody>
-  ${F.map(f=>{const cr=f.calendarReturns||{};return `<tr><td><div class="d-fn">${f.name.split(' ').slice(0,3).join(' ')}</div></td>
+  ${F.map(f=>{const cr=f.calendarReturns||{};return `<tr><td><div class="d-fn">${f.name.split(' ').slice(0,5).join(' ')}</div></td>
     ${years.map(y=>{const v=cr[y]||'—';const b=cr[y+'Beat'];return `<td class="d-nc"><span class="${b===true?'d-hl-g':b===false?'d-hl-r':'d-hl-a'}">${v}</span></td>`;}).join('')}
     <td class="d-nc"><span class="d-tag ${qColor(f.quartile)}">${f.quartile} — ${f.quartileLabel}</span></td></tr>`;}).join('')}
   ${(d.benchmarkRows&&d.benchmarkRows.length?d.benchmarkRows:[B]).map(bm=>`<tr style="background:rgba(255,248,235,0.6)">
@@ -537,7 +537,7 @@ function buildDashboard(d,funds){
     <th class="d-nr" style="border-left:1px solid rgba(192,138,42,0.1)">Avg</th><th class="d-nr">Beat%</th><th class="d-nr">Min</th>
   </tr></thead><tbody>
   ${F.map(f=>`<tr>
-    <td style="font-weight:500">${f.name.split(' ').slice(0,3).join(' ')}</td>
+    <td style="font-weight:500">${f.name.split(' ').slice(0,4).join(' ')}</td>
     <td class="d-nr d-o" style="border-left:1px solid rgba(192,138,42,0.05)">${f.rolling1yAvg}</td><td class="d-nr ${parseInt(f.rolling1yBeatPct)>50?'d-o':'d-r'}">${f.rolling1yBeatPct}</td><td class="d-nr d-r">${f.rolling1yWorst}</td>
     <td class="d-nr d-o" style="border-left:1px solid rgba(192,138,42,0.05)">${f.rolling3yAvg}</td><td class="d-nr ${parseInt(f.rolling3yBeatPct)>50?'d-o':'d-r'}">${f.rolling3yBeatPct}</td><td class="d-nr ${parseFloat(f.rolling3yMin)>8?'d-o':'d-r'}">${f.rolling3yMin}</td>
     <td class="d-nr d-o" style="border-left:1px solid rgba(192,138,42,0.05)">${f.rolling5yAvg||'N/A'}</td><td class="d-nr ${parseInt(f.rolling5yBeatPct)>50?'d-o':'d-r'}">${f.rolling5yBeatPct||'N/A'}</td><td class="d-nr ${parseFloat(f.rolling5yMin)>8?'d-o':'d-r'}">${f.rolling5yMin||'N/A'}</td>
@@ -600,7 +600,7 @@ function buildDashboard(d,funds){
       <th>Fund</th><th class="d-nr">Est. value</th><th class="d-nr">Gain</th><th class="d-nr">LTCG tax*</th><th class="d-nr">Net proceeds</th><th class="d-nc">Break-even</th>
     </tr></thead><tbody>
     ${exitFunds.map(f=>`<tr>
-      <td style="font-weight:500">${f.name.split(' ').slice(0,3).join(' ')}</td>
+      <td style="font-weight:500">${f.name.split(' ').slice(0,4).join(' ')}</td>
       <td class="d-nr d-o">${f.estCurrentValue}</td>
       <td class="d-nr d-o">${f.gainAmt}</td>
       <td class="d-nr d-o">${f.ltcgTax}</td>

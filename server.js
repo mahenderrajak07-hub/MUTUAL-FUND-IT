@@ -358,6 +358,12 @@ const CALENDAR = {
   CRISIL_H:  {'2020':'+8.4%', '2021':'+17.1%','2022':'+3.2%','2023':'+15.1%','2024':'+10.4%','2025':'+3.2%'},
   CRISIL_H65:{'2020':'+11.2%','2021':'+21.4%','2022':'+4.1%','2023':'+18.8%','2024':'+12.1%','2025':'+3.1%'},
   CRISIL_MA: {'2020':'+9.2%', '2021':'+18.8%','2022':'+5.1%','2023':'+15.4%','2024':'+11.2%','2025':'+4.8%'},
+  // Equity Savings (~30% equity + ~30% arbitrage + ~40% debt) — lower returns than BAF
+  EQ_SAV:    {'2020':'+6.2%', '2021':'+11.8%','2022':'+3.5%','2023':'+10.2%','2024':'+8.8%', '2025':'+4.5%'},
+  // Conservative Hybrid (25% equity + 75% debt) — closer to debt returns
+  CONS_HYB:  {'2020':'+7.8%', '2021':'+6.2%', '2022':'+2.8%','2023':'+8.5%', '2024':'+8.2%', '2025':'+5.5%'},
+  // Arbitrage (near risk-free, tracks overnight/liquid rates)
+  ARB:       {'2020':'+4.2%', '2021':'+3.8%', '2022':'+4.2%','2023':'+6.8%', '2024':'+7.2%', '2025':'+6.5%'},
   // Debt — overnight / liquid / money market / ultra short (very low volatility)
   DEBT_ON:   {'2020':'+3.9%', '2021':'+3.2%', '2022':'+4.4%', '2023':'+6.5%', '2024':'+6.6%', '2025':'+6.3%'},
   DEBT_LIQ:  {'2020':'+4.6%', '2021':'+3.5%', '2022':'+4.6%', '2023':'+6.8%', '2024':'+7.1%', '2025':'+6.5%'},
@@ -393,10 +399,10 @@ const CATEGORY_BENCHMARKS = {
   // ── Hybrid ──────────────────────────────────────────────────────────────
   'Balanced Advantage Fund':   { name:'CRISIL Hybrid 50+50 Aggr',cagr5y:10.8, cagr3y:11.2, ret1y:3.5,  sharpe:0.78, stddev:9.8,  calendarReturns:CALENDAR.CRISIL_H },
   'Aggressive Hybrid Fund':    { name:'CRISIL Hybrid 65+35 Aggr',cagr5y:12.1, cagr3y:12.8, ret1y:1.8,  sharpe:0.82, stddev:11.2, calendarReturns:CALENDAR.CRISIL_H65 },
-  'Conservative Hybrid Fund':  { name:'CRISIL Hybrid 25+75 Cons',cagr5y:8.4,  cagr3y:8.8,  ret1y:4.2,  sharpe:0.72, stddev:7.2,  calendarReturns:CALENDAR.CRISIL_H },
+  'Conservative Hybrid Fund':  { name:'CRISIL Hybrid 25+75 Cons',cagr5y:8.4,  cagr3y:8.8,  ret1y:4.2,  sharpe:0.72, stddev:7.2,  calendarReturns:CALENDAR.CONS_HYB },
   'Multi Asset Allocation Fund':{ name:'CRISIL Multi Asset',      cagr5y:11.2, cagr3y:11.8, ret1y:3.8,  sharpe:0.80, stddev:10.1, calendarReturns:CALENDAR.CRISIL_MA },
-  'Equity Savings Fund':       { name:'Nifty Equity Savings',    cagr5y:8.8,  cagr3y:9.2,  ret1y:4.8,  sharpe:0.85, stddev:6.8,  calendarReturns:CALENDAR.CRISIL_H },
-  'Arbitrage Fund':            { name:'Nifty 50 Arbitrage',      cagr5y:6.2,  cagr3y:6.8,  ret1y:7.2,  sharpe:1.20, stddev:1.2,  calendarReturns:CALENDAR.CRISIL_H },
+  'Equity Savings Fund':       { name:'Nifty Equity Savings',    cagr5y:8.8,  cagr3y:9.2,  ret1y:4.8,  sharpe:0.85, stddev:6.8,  calendarReturns:CALENDAR.EQ_SAV },
+  'Arbitrage Fund':            { name:'Nifty 50 Arbitrage',      cagr5y:6.2,  cagr3y:6.8,  ret1y:7.2,  sharpe:1.20, stddev:1.2,  calendarReturns:CALENDAR.ARB },
   // ── Debt — SEBI mandated benchmarks (NIFTY Debt Indices) ───────────────
   'Overnight Fund':            { name:'NIFTY 1D Rate Index',                     cagr5y:4.8,  cagr3y:5.8,  ret1y:6.5,  sharpe:3.50, stddev:0.2,  calendarReturns:CALENDAR.DEBT_ON },
   'Liquid Fund':               { name:'NIFTY Liquid Index A-I',                  cagr5y:5.2,  cagr3y:5.9,  ret1y:7.0,  sharpe:3.20, stddev:0.4,  calendarReturns:CALENDAR.DEBT_LIQ },
